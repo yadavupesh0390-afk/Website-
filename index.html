@@ -3,23 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Business Reel Upload</title>
+<title>Business Reel Upload Test</title>
 <style>
-  body { font-family: Arial; padding: 20px; }
+  body { font-family: Arial; padding: 20px; background: #111; color: #fff; }
   input, button { margin: 5px 0; padding: 10px; width: 100%; }
-  button { background: #ff004f; color: white; border: none; border-radius: 5px; }
+  button { background: #ff004f; color: white; border: none; border-radius: 5px; cursor: pointer; }
+  hr { margin: 20px 0; border: 0.5px solid #555; }
 </style>
 </head>
 <body>
 
 <h2>Business Reel Upload Test</h2>
 
+<h3>Login</h3>
 <input type="text" id="email" placeholder="Your Email">
 <input type="password" id="password" placeholder="Your Password">
 <button onclick="login()">Login</button>
 
 <hr>
 
+<h3>Upload Reel</h3>
 <input type="text" id="videoUrl" placeholder="Video URL (MP4)">
 <input type="text" id="businessName" placeholder="Business Name">
 <input type="text" id="website" placeholder="Business Website URL">
@@ -27,9 +30,11 @@
 <button onclick="uploadReel()">Upload Reel</button>
 
 <script>
-const API = "https://business-reels-backend.onrender.com"; // Your backend
-
+const API = "https://business-reels-backend.onrender.com"; // Your backend URL
 let token = "";
+
+// AUTO TEST VIDEO
+const testVideo = "https://www.w3schools.com/html/mov_bbb.mp4"; // Public MP4
 
 // LOGIN
 async function login() {
@@ -46,6 +51,7 @@ async function login() {
   if(data.token){
     token = data.token;
     alert("Login Successful ✅");
+    console.log("Login TOKEN:", token);
   } else {
     alert("Login Failed ❌: " + (data.error || "Unknown error"));
   }
@@ -58,25 +64,32 @@ async function uploadReel() {
     return;
   }
 
-  const videoUrl = document.getElementById("videoUrl").value;
-  const businessName = document.getElementById("businessName").value;
-  const website = document.getElementById("website").value;
-  const category = document.getElementById("category").value;
+  const videoUrl = document.getElementById("videoUrl").value || testVideo;
+  const businessName = document.getElementById("businessName").value || "Test Business";
+  const website = document.getElementById("website").value || "https://example.com";
+  const category = document.getElementById("category").value || "shop";
 
-  const res = await fetch(`${API}/reels/upload`, {
-    method: "POST",
-    headers: { 
-      "Content-Type": "application/json",
-      "Authorization": token
-    },
-    body: JSON.stringify({ videoUrl, businessName, website, category })
-  });
+  try {
+    const res = await fetch(`${API}/reels/upload`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token // 🔥 Bearer token format
+      },
+      body: JSON.stringify({ videoUrl, businessName, website, category })
+    });
 
-  const data = await res.json();
-  if(data.message){
-    alert("Reel Uploaded ✅");
-  } else {
-    alert("Upload Failed ❌: " + (data.error || "Unknown error"));
+    const data = await res.json();
+    if(data.message){
+      alert("Reel Uploaded ✅");
+      console.log(data);
+    } else {
+      alert("Upload Failed ❌: " + (data.error || "Unknown error"));
+      console.log(data);
+    }
+  } catch(err){
+    console.error(err);
+    alert("Upload Failed ❌: Server error");
   }
 }
 </script>
