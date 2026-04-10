@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Upload Debug Final</title>
+<title>Upload Debug Final FIX</title>
 
 <style>
 body {
@@ -17,6 +17,7 @@ input, button {
   width: 100%;
   padding: 10px;
   margin: 5px 0;
+  box-sizing: border-box;
 }
 
 button {
@@ -30,14 +31,13 @@ button {
 
 <body>
 
-<h2>🚀 UPLOAD DEBUG FINAL</h2>
+<h2>🚀 UPLOAD DEBUG FINAL FIX</h2>
 
 <!-- LOGIN -->
 <h3>Login</h3>
 <input type="text" id="email" placeholder="Email">
 <input type="password" id="password" placeholder="Password">
-
-<button onclick="login()">LOGIN</button>
+<button type="button" onclick="login()">LOGIN</button>
 
 <hr>
 
@@ -49,20 +49,20 @@ button {
 <input type="text" id="category" placeholder="Category">
 <input type="text" id="whatsapp" placeholder="WhatsApp">
 
-<button onclick="uploadReel()">UPLOAD TEST</button>
+<button type="button" id="uploadBtn">UPLOAD TEST</button>
 
 <script>
 
 const API = "https://business-reels-backend.onrender.com";
 let token = null;
 
-/* ================= LOAD TOKEN ================= */
+/* ================= TOKEN LOAD ================= */
 function loadToken() {
   token = localStorage.getItem("token");
   console.log("🔑 TOKEN:", token);
 }
 
-/* ================= LOGIN FUNCTION ================= */
+/* ================= LOGIN ================= */
 async function login() {
   console.log("LOGIN CLICKED");
 
@@ -94,37 +94,40 @@ async function login() {
   }
 }
 
-/* ================= UPLOAD FUNCTION ================= */
-async function uploadReel() {
+/* ================= UPLOAD FUNCTION (GLOBAL SAFE) ================= */
+window.uploadReel = async function () {
 
   console.log("🟢 STEP 1 CLICKED");
-
-  loadToken();
-
-  if (!token) {
-    alert("❌ Please login first");
-    return;
-  }
-
-  const file = document.getElementById("video").files[0];
-
-  if (!file) {
-    alert("❌ Select file first");
-    return;
-  }
-
-  console.log("FILE OK:", file.name);
-
-  const formData = new FormData();
-  formData.append("video", file);
-  formData.append("businessName", document.getElementById("businessName").value);
-  formData.append("website", document.getElementById("website").value);
-  formData.append("category", document.getElementById("category").value);
-  formData.append("whatsapp", document.getElementById("whatsapp").value);
-
-  console.log("📦 SENDING REQUEST...");
+  alert("UPLOAD CLICKED");
 
   try {
+    loadToken();
+
+    console.log("STEP 2 TOKEN:", token);
+
+    if (!token || token === "null" || token === "undefined") {
+      alert("❌ Login required");
+      return;
+    }
+
+    const file = document.getElementById("video").files[0];
+
+    if (!file) {
+      alert("❌ Select file first");
+      return;
+    }
+
+    console.log("FILE:", file.name);
+
+    const formData = new FormData();
+    formData.append("video", file);
+    formData.append("businessName", document.getElementById("businessName").value);
+    formData.append("website", document.getElementById("website").value);
+    formData.append("category", document.getElementById("category").value);
+    formData.append("whatsapp", document.getElementById("whatsapp").value);
+
+    console.log("📦 SENDING REQUEST...");
+
     const res = await fetch(API + "/reels/upload", {
       method: "POST",
       headers: {
@@ -149,7 +152,10 @@ async function uploadReel() {
     console.log("UPLOAD ERROR:", err);
     alert("Request failed");
   }
-}
+};
+
+/* ================= BUTTON BIND ================= */
+document.getElementById("uploadBtn").addEventListener("click", uploadReel);
 
 </script>
 
