@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Business Reel Upload</title>
+<title>Debug Upload</title>
 
 <style>
 body {
@@ -14,176 +14,62 @@ body {
 }
 
 input, button {
-  margin: 5px 0;
-  padding: 10px;
   width: 100%;
-  box-sizing: border-box;
+  padding: 10px;
+  margin: 5px 0;
 }
 
 button {
-  background: #ff004f;
+  background: red;
   color: white;
   border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-button:hover {
-  opacity: 0.9;
-}
-
-hr {
-  margin: 20px 0;
-  border: 0.5px solid #555;
 }
 </style>
 </head>
 
 <body>
 
-<h2>Business Reel Upload</h2>
+<h2>UPLOAD DEBUG TEST</h2>
 
-<!-- LOGIN -->
-<h3>Login / Register</h3>
-
-<input type="text" id="email" placeholder="Email">
-<input type="password" id="password" placeholder="Password">
-<input type="text" id="city" placeholder="City (optional)">
-
-<button type="button" onclick="register()">Register</button>
-<button type="button" onclick="login()">Login</button>
-
-<hr>
-
-<!-- UPLOAD -->
-<h3>Upload Reel</h3>
-
-<input type="file" id="video" accept="video/*">
+<input type="file" id="video">
 
 <input type="text" id="businessName" placeholder="Business Name">
-<input type="text" id="website" placeholder="Business Website URL">
+<input type="text" id="website" placeholder="Website">
 <input type="text" id="category" placeholder="Category">
-<input type="text" id="whatsapp" placeholder="WhatsApp Number">
+<input type="text" id="whatsapp" placeholder="WhatsApp">
 
-<button type="button" onclick="uploadReel()">Upload Reel</button>
+<button onclick="uploadReel()">UPLOAD TEST</button>
 
 <script>
 
-const API = "https://business-reels-backend.onrender.com";
-let token = null;
+let token = localStorage.getItem("token");
 
-// load token safely
-try {
-  token = localStorage.getItem("token");
-} catch (e) {
-  token = null;
-}
+/* ================= CLICK TEST ================= */
+function uploadReel() {
 
-/* ================= REGISTER ================= */
-async function register() {
-  console.log("REGISTER CLICK");
+  console.log("🟢 STEP 1: BUTTON CLICKED");
+  alert("STEP 1: Button clicked");
 
   try {
-    const res = await fetch(API + "/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: document.getElementById("email").value,
-        password: document.getElementById("password").value,
-        city: document.getElementById("city").value
-      })
-    });
 
-    const data = await res.json();
-    alert(data.message || data.error || "Done");
+    console.log("🟡 STEP 2: FUNCTION ENTERED");
+    alert("STEP 2: Function entered");
 
-  } catch (err) {
-    console.log("REGISTER ERROR:", err);
-    alert("Register failed ❌");
-  }
-}
-
-/* ================= LOGIN ================= */
-async function login() {
-  console.log("LOGIN CLICK");
-
-  try {
-    const res = await fetch(API + "/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: document.getElementById("email").value,
-        password: document.getElementById("password").value
-      })
-    });
-
-    const data = await res.json();
-
-    if (data.token) {
-      token = data.token;
-      localStorage.setItem("token", token);
-      alert("Login Successful ✅");
-      console.log("TOKEN SAVED");
-    } else {
-      alert(data.error || "Login failed ❌");
+    if (!token) {
+      console.log("🔴 STEP 3: NO TOKEN");
+      alert("No token found");
+      return;
     }
 
-  } catch (err) {
-    console.log("LOGIN ERROR:", err);
-    alert("Login error ❌");
-  }
-}
-  function validateUploadForm() {
-  const file = document.getElementById("video").files[0];
-  const businessName = document.getElementById("businessName").value.trim();
-  const website = document.getElementById("website").value.trim();
-  const category = document.getElementById("category").value.trim();
-  const whatsapp = document.getElementById("whatsapp").value.trim();
-
-  if (!file) {
-    alert("❌ Please select a video file");
-    return false;
-  }
-
-  if (file.size > 100 * 1024 * 1024) {
-    alert("❌ File too large (Max 100MB allowed)");
-    return false;
-  }
-
-  if (!businessName) {
-    alert("❌ Business name required");
-    return false;
-  }
-
-  if (!website) {
-    alert("❌ Website required");
-    return false;
-  }
-
-  if (!category) {
-    alert("❌ Category required");
-    return false;
-  }
-
-  if (!whatsapp) {
-    alert("❌ WhatsApp number required");
-    return false;
-  }
-
-  console.log("✅ All validation passed");
-  return true;
-                  }
-
-/* ================= UPLOAD ================= */
-async function uploadReel() {
-
-  console.log("UPLOAD CLICKED 🚀");
-
-  // 👉 FRONTEND ERROR CHECK
-  if (!validateUploadForm()) return;
-
-  try {
     const file = document.getElementById("video").files[0];
+
+    if (!file) {
+      console.log("🔴 STEP 4: NO FILE");
+      alert("No file selected");
+      return;
+    }
+
+    console.log("🟣 STEP 5: FILE OK");
 
     const formData = new FormData();
     formData.append("video", file);
@@ -192,32 +78,31 @@ async function uploadReel() {
     formData.append("category", document.getElementById("category").value);
     formData.append("whatsapp", document.getElementById("whatsapp").value);
 
-    console.log("📦 Sending request to server...");
+    console.log("📦 STEP 6: FORM DATA READY");
 
-    const res = await fetch(API + "/reels/upload", {
+    fetch("https://business-reels-backend.onrender.com/reels/upload", {
       method: "POST",
       headers: {
         Authorization: "Bearer " + token
       },
       body: formData
+    })
+    .then(res => {
+      console.log("📡 STEP 7: RESPONSE RECEIVED", res.status);
+      return res.json();
+    })
+    .then(data => {
+      console.log("📩 STEP 8: DATA:", data);
+      alert("UPLOAD DONE");
+    })
+    .catch(err => {
+      console.log("❌ STEP ERROR:", err);
+      alert("Request failed");
     });
 
-    console.log("📡 STATUS:", res.status);
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      alert("❌ Server Error: " + (data.error || "Unknown error"));
-      console.log("SERVER ERROR:", data);
-      return;
-    }
-
-    alert("✅ Upload Success");
-    console.log("SUCCESS:", data);
-
   } catch (err) {
-    console.log("❌ FRONTEND ERROR:", err);
-    alert("Upload failed (check console)");
+    console.log("❌ GLOBAL ERROR:", err);
+    alert("Function crash");
   }
 }
 
