@@ -133,28 +133,57 @@ async function login() {
     alert("Login error ❌");
   }
 }
+  function validateUploadForm() {
+  const file = document.getElementById("video").files[0];
+  const businessName = document.getElementById("businessName").value.trim();
+  const website = document.getElementById("website").value.trim();
+  const category = document.getElementById("category").value.trim();
+  const whatsapp = document.getElementById("whatsapp").value.trim();
+
+  if (!file) {
+    alert("❌ Please select a video file");
+    return false;
+  }
+
+  if (file.size > 100 * 1024 * 1024) {
+    alert("❌ File too large (Max 100MB allowed)");
+    return false;
+  }
+
+  if (!businessName) {
+    alert("❌ Business name required");
+    return false;
+  }
+
+  if (!website) {
+    alert("❌ Website required");
+    return false;
+  }
+
+  if (!category) {
+    alert("❌ Category required");
+    return false;
+  }
+
+  if (!whatsapp) {
+    alert("❌ WhatsApp number required");
+    return false;
+  }
+
+  console.log("✅ All validation passed");
+  return true;
+                  }
 
 /* ================= UPLOAD ================= */
 async function uploadReel() {
+
   console.log("UPLOAD CLICKED 🚀");
 
+  // 👉 FRONTEND ERROR CHECK
+  if (!validateUploadForm()) return;
+
   try {
-
-    token = localStorage.getItem("token");
-
-    if (!token) {
-      alert("Please login first!");
-      return;
-    }
-
-    const fileInput = document.getElementById("video");
-
-    if (!fileInput || fileInput.files.length === 0) {
-      alert("Please select video!");
-      return;
-    }
-
-    const file = fileInput.files[0];
+    const file = document.getElementById("video").files[0];
 
     const formData = new FormData();
     formData.append("video", file);
@@ -163,7 +192,7 @@ async function uploadReel() {
     formData.append("category", document.getElementById("category").value);
     formData.append("whatsapp", document.getElementById("whatsapp").value);
 
-    console.log("Sending request...");
+    console.log("📦 Sending request to server...");
 
     const res = await fetch(API + "/reels/upload", {
       method: "POST",
@@ -173,20 +202,22 @@ async function uploadReel() {
       body: formData
     });
 
-    console.log("STATUS:", res.status);
+    console.log("📡 STATUS:", res.status);
 
     const data = await res.json();
-    console.log("RESPONSE:", data);
 
-    if (res.ok) {
-      alert("Upload Success 🚀");
-    } else {
-      alert(data.error || "Upload failed ❌");
+    if (!res.ok) {
+      alert("❌ Server Error: " + (data.error || "Unknown error"));
+      console.log("SERVER ERROR:", data);
+      return;
     }
 
+    alert("✅ Upload Success");
+    console.log("SUCCESS:", data);
+
   } catch (err) {
-    console.log("UPLOAD ERROR:", err);
-    alert("Upload failed ❌ Check console");
+    console.log("❌ FRONTEND ERROR:", err);
+    alert("Upload failed (check console)");
   }
 }
 
