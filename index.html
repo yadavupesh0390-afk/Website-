@@ -23,6 +23,7 @@ button {
   background: #ff004f;
   border: none;
   color: white;
+  cursor: pointer;
 }
 </style>
 </head>
@@ -31,6 +32,16 @@ button {
 
 <h2>🚀 UPLOAD DEBUG FINAL</h2>
 
+<!-- LOGIN -->
+<h3>Login</h3>
+<input type="text" id="email" placeholder="Email">
+<input type="password" id="password" placeholder="Password">
+
+<button onclick="login()">LOGIN</button>
+
+<hr>
+
+<!-- UPLOAD -->
 <input type="file" id="video">
 
 <input type="text" id="businessName" placeholder="Business Name">
@@ -42,60 +53,79 @@ button {
 
 <script>
 
-/* ================= SAFE TOKEN LOAD ================= */
+const API = "https://business-reels-backend.onrender.com";
 let token = null;
 
+/* ================= LOAD TOKEN ================= */
 function loadToken() {
-  try {
-    token = localStorage.getItem("token");
-    console.log("🔑 TOKEN LOADED:", token);
-  } catch (e) {
-    token = null;
-    console.log("❌ TOKEN ERROR");
-  }
+  token = localStorage.getItem("token");
+  console.log("🔑 TOKEN:", token);
 }
 
-loadToken();
+/* ================= LOGIN FUNCTION ================= */
+async function login() {
+  console.log("LOGIN CLICKED");
+
+  try {
+    const res = await fetch(API + "/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: document.getElementById("email").value,
+        password: document.getElementById("password").value
+      })
+    });
+
+    const data = await res.json();
+    console.log("LOGIN RESPONSE:", data);
+
+    if (data.token) {
+      token = data.token;
+      localStorage.setItem("token", token);
+      alert("Login Successful ✅");
+      console.log("TOKEN SAVED:", token);
+    } else {
+      alert(data.error || "Login failed ❌");
+    }
+
+  } catch (err) {
+    console.log("LOGIN ERROR:", err);
+    alert("Login request failed");
+  }
+}
 
 /* ================= UPLOAD FUNCTION ================= */
 async function uploadReel() {
 
-  console.log("🟢 STEP 1: BUTTON CLICK");
-  alert("STEP 1 OK");
+  console.log("🟢 STEP 1 CLICKED");
+
+  loadToken();
+
+  if (!token) {
+    alert("❌ Please login first");
+    return;
+  }
+
+  const file = document.getElementById("video").files[0];
+
+  if (!file) {
+    alert("❌ Select file first");
+    return;
+  }
+
+  console.log("FILE OK:", file.name);
+
+  const formData = new FormData();
+  formData.append("video", file);
+  formData.append("businessName", document.getElementById("businessName").value);
+  formData.append("website", document.getElementById("website").value);
+  formData.append("category", document.getElementById("category").value);
+  formData.append("whatsapp", document.getElementById("whatsapp").value);
+
+  console.log("📦 SENDING REQUEST...");
 
   try {
-
-    console.log("🟡 STEP 2: FUNCTION START");
-    alert("STEP 2 OK");
-
-    loadToken();
-
-    if (!token || token === "null" || token === "undefined") {
-      console.log("🔴 STEP 3: NO TOKEN");
-      alert("❌ Login required (token missing)");
-      return;
-    }
-
-    const file = document.getElementById("video").files[0];
-
-    if (!file) {
-      console.log("🔴 STEP 4: NO FILE");
-      alert("❌ Select file first");
-      return;
-    }
-
-    console.log("🟣 STEP 5: FILE READY", file.name);
-
-    const formData = new FormData();
-    formData.append("video", file);
-    formData.append("businessName", document.getElementById("businessName").value);
-    formData.append("website", document.getElementById("website").value);
-    formData.append("category", document.getElementById("category").value);
-    formData.append("whatsapp", document.getElementById("whatsapp").value);
-
-    console.log("📦 STEP 6: SENDING REQUEST");
-
-    const response = await fetch("https://business-reels-backend.onrender.com/reels/upload", {
+    const res = await fetch(API + "/reels/upload", {
       method: "POST",
       headers: {
         Authorization: "Bearer " + token
@@ -103,30 +133,21 @@ async function uploadReel() {
       body: formData
     });
 
-    console.log("📡 STEP 7 STATUS:", response.status);
+    console.log("STATUS:", res.status);
 
-    const text = await response.text();
-    console.log("📩 RAW RESPONSE:", text);
+    const data = await res.json();
+    console.log("RESPONSE:", data);
 
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      data = { error: text };
-    }
-
-    console.log("📦 FINAL DATA:", data);
-
-    if (!response.ok) {
-      alert("❌ SERVER ERROR: " + (data.error || "Upload failed"));
+    if (!res.ok) {
+      alert("❌ ERROR: " + (data.error || "Upload failed"));
       return;
     }
 
     alert("✅ UPLOAD SUCCESS");
 
   } catch (err) {
-    console.log("❌ GLOBAL ERROR:", err);
-    alert("Request failed (check console)");
+    console.log("UPLOAD ERROR:", err);
+    alert("Request failed");
   }
 }
 
