@@ -6,11 +6,36 @@
 <title>Business Reel Upload</title>
 
 <style>
-body { font-family: Arial; padding: 20px; background: #111; color: #fff; }
-input, button { margin: 5px 0; padding: 10px; width: 100%; box-sizing: border-box; }
-button { background: #ff004f; color: white; border: none; border-radius: 5px; cursor: pointer; }
-button:hover { opacity: 0.9; }
-hr { margin: 20px 0; border: 0.5px solid #555; }
+body {
+  font-family: Arial;
+  padding: 20px;
+  background: #111;
+  color: #fff;
+}
+
+input, button {
+  margin: 5px 0;
+  padding: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+button {
+  background: #ff004f;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+hr {
+  margin: 20px 0;
+  border: 0.5px solid #555;
+}
 </style>
 </head>
 
@@ -20,12 +45,13 @@ hr { margin: 20px 0; border: 0.5px solid #555; }
 
 <!-- LOGIN -->
 <h3>Login / Register</h3>
+
 <input type="text" id="email" placeholder="Email">
 <input type="password" id="password" placeholder="Password">
 <input type="text" id="city" placeholder="City (optional)">
 
-<button onclick="register()">Register</button>
-<button onclick="login()">Login</button>
+<button type="button" onclick="register()">Register</button>
+<button type="button" onclick="login()">Login</button>
 
 <hr>
 
@@ -39,14 +65,24 @@ hr { margin: 20px 0; border: 0.5px solid #555; }
 <input type="text" id="category" placeholder="Category">
 <input type="text" id="whatsapp" placeholder="WhatsApp Number">
 
-<button onclick="uploadReel()">Upload Reel</button>
+<button type="button" onclick="uploadReel()">Upload Reel</button>
 
 <script>
+
 const API = "https://business-reels-backend.onrender.com";
-let token = localStorage.getItem("token") || "";
+let token = null;
+
+// load token safely
+try {
+  token = localStorage.getItem("token");
+} catch (e) {
+  token = null;
+}
 
 /* ================= REGISTER ================= */
 async function register() {
+  console.log("REGISTER CLICK");
+
   try {
     const res = await fetch(API + "/auth/register", {
       method: "POST",
@@ -59,16 +95,18 @@ async function register() {
     });
 
     const data = await res.json();
-    alert(data.message || data.error);
+    alert(data.message || data.error || "Done");
 
   } catch (err) {
-    console.log(err);
+    console.log("REGISTER ERROR:", err);
     alert("Register failed ❌");
   }
 }
 
 /* ================= LOGIN ================= */
 async function login() {
+  console.log("LOGIN CLICK");
+
   try {
     const res = await fetch(API + "/auth/login", {
       method: "POST",
@@ -85,29 +123,33 @@ async function login() {
       token = data.token;
       localStorage.setItem("token", token);
       alert("Login Successful ✅");
+      console.log("TOKEN SAVED");
     } else {
       alert(data.error || "Login failed ❌");
     }
 
   } catch (err) {
-    console.log(err);
+    console.log("LOGIN ERROR:", err);
     alert("Login error ❌");
   }
 }
 
-/* ================= UPLOAD REEL (FIXED) ================= */
+/* ================= UPLOAD ================= */
 async function uploadReel() {
   console.log("UPLOAD CLICKED 🚀");
 
   try {
-    if (!token || token === "undefined") {
+
+    token = localStorage.getItem("token");
+
+    if (!token) {
       alert("Please login first!");
       return;
     }
 
     const fileInput = document.getElementById("video");
 
-    if (!fileInput || !fileInput.files.length) {
+    if (!fileInput || fileInput.files.length === 0) {
       alert("Please select video!");
       return;
     }
@@ -121,7 +163,7 @@ async function uploadReel() {
     formData.append("category", document.getElementById("category").value);
     formData.append("whatsapp", document.getElementById("whatsapp").value);
 
-    console.log("Sending request to server...");
+    console.log("Sending request...");
 
     const res = await fetch(API + "/reels/upload", {
       method: "POST",
@@ -133,26 +175,21 @@ async function uploadReel() {
 
     console.log("STATUS:", res.status);
 
-    const text = await res.text();
-    console.log("RAW RESPONSE:", text);
+    const data = await res.json();
+    console.log("RESPONSE:", data);
 
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch (e) {
-      console.log("JSON parse error");
-      data = { error: text };
+    if (res.ok) {
+      alert("Upload Success 🚀");
+    } else {
+      alert(data.error || "Upload failed ❌");
     }
-
-    console.log("FINAL RESPONSE:", data);
-
-    alert(data.message || data.error || "Unknown response");
 
   } catch (err) {
     console.log("UPLOAD ERROR:", err);
     alert("Upload failed ❌ Check console");
   }
 }
+
 </script>
 
 </body>
