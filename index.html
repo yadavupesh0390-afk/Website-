@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Business Reel Upload Test</title>
+<title>Business Reel Upload</title>
 
 <style>
 body { font-family: Arial; padding: 20px; background: #111; color: #fff; }
@@ -15,7 +15,7 @@ hr { margin: 20px 0; border: 0.5px solid #555; }
 
 <body>
 
-<h2>Business Reel Upload Test</h2>
+<h2>Business Reel Upload</h2>
 
 <h3>Login / Register</h3>
 <input type="text" id="email" placeholder="Email">
@@ -27,30 +27,31 @@ hr { margin: 20px 0; border: 0.5px solid #555; }
 <hr>
 
 <h3>Upload Reel</h3>
-<input type="text" id="videoUrl" placeholder="Video URL (MP4)">
+
+<!-- 🔥 FILE UPLOAD -->
+<input type="file" id="video">
+
 <input type="text" id="businessName" placeholder="Business Name">
 <input type="text" id="website" placeholder="Business Website URL">
-<input type="text" id="category" placeholder="Category (education/shop/service/tech)">
+<input type="text" id="category" placeholder="Category">
 <input type="text" id="whatsapp" placeholder="WhatsApp Number (91XXXXXXXXXX)">
+
 <button onclick="uploadReel()">Upload Reel</button>
 
 <script>
 const API = "https://business-reels-backend.onrender.com";
 let token = "";
 
-// TEST VIDEO
-const testVideo = "https://www.w3schools.com/html/mov_bbb.mp4";
-
 // REGISTER
 async function register() {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-  const city = document.getElementById("city").value;
-
   const res = await fetch(API + "/auth/register", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ email, password, city })
+    body: JSON.stringify({
+      email: email.value,
+      password: password.value,
+      city: city.value
+    })
   });
 
   const data = await res.json();
@@ -59,51 +60,57 @@ async function register() {
 
 // LOGIN
 async function login() {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-
   const res = await fetch(API + "/auth/login", {
     method: "POST",
     headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({
+      email: email.value,
+      password: password.value
+    })
   });
 
   const data = await res.json();
 
   if(data.token){
     token = data.token;
-    localStorage.setItem("token", token); // save login
+    localStorage.setItem("token", token);
     alert("Login Successful ✅");
   } else {
-    alert("Login Failed ❌: " + (data.error || "Unknown"));
+    alert(data.error);
   }
 }
 
-// AUTO LOAD TOKEN
+// AUTO TOKEN
 if(localStorage.getItem("token")){
   token = localStorage.getItem("token");
 }
 
-// UPLOAD REEL
+// 🔥 UPLOAD FUNCTION (IMPORTANT)
 async function uploadReel() {
   if(!token){
-    alert("Please login first!");
+    alert("Login first!");
     return;
   }
 
-  const videoUrl = document.getElementById("videoUrl").value || testVideo;
-  const businessName = document.getElementById("businessName").value || "Test Business";
-  const website = document.getElementById("website").value || "https://example.com";
-  const category = document.getElementById("category").value || "shop";
-  const whatsapp = document.getElementById("whatsapp").value;
+  const file = document.getElementById("video").files[0];
+  if(!file){
+    alert("Please select video!");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("video", file);
+  formData.append("businessName", document.getElementById("businessName").value);
+  formData.append("website", document.getElementById("website").value);
+  formData.append("category", document.getElementById("category").value);
+  formData.append("whatsapp", document.getElementById("whatsapp").value);
 
   const res = await fetch(API + "/reels/upload", {
     method: "POST",
-    headers: { 
-      "Content-Type": "application/json",
+    headers: {
       "Authorization": "Bearer " + token
     },
-    body: JSON.stringify({ videoUrl, businessName, website, category, whatsapp })
+    body: formData
   });
 
   const data = await res.json();
