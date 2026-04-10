@@ -7,8 +7,9 @@
 
 <style>
 body { font-family: Arial; padding: 20px; background: #111; color: #fff; }
-input, button { margin: 5px 0; padding: 10px; width: 100%; }
+input, button { margin: 5px 0; padding: 10px; width: 100%; box-sizing: border-box; }
 button { background: #ff004f; color: white; border: none; border-radius: 5px; cursor: pointer; }
+button:hover { opacity: 0.9; }
 hr { margin: 20px 0; border: 0.5px solid #555; }
 </style>
 </head>
@@ -17,6 +18,7 @@ hr { margin: 20px 0; border: 0.5px solid #555; }
 
 <h2>Business Reel Upload</h2>
 
+<!-- LOGIN -->
 <h3>Login / Register</h3>
 <input type="text" id="email" placeholder="Email">
 <input type="password" id="password" placeholder="Password">
@@ -27,9 +29,10 @@ hr { margin: 20px 0; border: 0.5px solid #555; }
 
 <hr>
 
+<!-- UPLOAD -->
 <h3>Upload Reel</h3>
 
-<input type="file" id="video">
+<input type="file" id="video" accept="video/*">
 
 <input type="text" id="businessName" placeholder="Business Name">
 <input type="text" id="website" placeholder="Business Website URL">
@@ -42,12 +45,12 @@ hr { margin: 20px 0; border: 0.5px solid #555; }
 const API = "https://business-reels-backend.onrender.com";
 let token = localStorage.getItem("token") || "";
 
-// REGISTER
+/* ================= REGISTER ================= */
 async function register() {
   try {
     const res = await fetch(API + "/auth/register", {
       method: "POST",
-      headers: {"Content-Type":"application/json"},
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         email: document.getElementById("email").value,
         password: document.getElementById("password").value,
@@ -57,18 +60,19 @@ async function register() {
 
     const data = await res.json();
     alert(data.message || data.error);
+
   } catch (err) {
     console.log(err);
     alert("Register failed ❌");
   }
 }
 
-// LOGIN
+/* ================= LOGIN ================= */
 async function login() {
   try {
     const res = await fetch(API + "/auth/login", {
       method: "POST",
-      headers: {"Content-Type":"application/json"},
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         email: document.getElementById("email").value,
         password: document.getElementById("password").value
@@ -82,7 +86,7 @@ async function login() {
       localStorage.setItem("token", token);
       alert("Login Successful ✅");
     } else {
-      alert(data.error || "Login failed");
+      alert(data.error || "Login failed ❌");
     }
 
   } catch (err) {
@@ -91,21 +95,24 @@ async function login() {
   }
 }
 
-// UPLOAD REEL
+/* ================= UPLOAD REEL (FIXED) ================= */
 async function uploadReel() {
-  try {
-    console.log("UPLOAD CLICKED");
+  console.log("UPLOAD CLICKED 🚀");
 
-    if (!token) {
+  try {
+    if (!token || token === "undefined") {
       alert("Please login first!");
       return;
     }
 
-    const file = document.getElementById("video").files[0];
-    if (!file) {
+    const fileInput = document.getElementById("video");
+
+    if (!fileInput || !fileInput.files.length) {
       alert("Please select video!");
       return;
     }
+
+    const file = fileInput.files[0];
 
     const formData = new FormData();
     formData.append("video", file);
@@ -114,29 +121,38 @@ async function uploadReel() {
     formData.append("category", document.getElementById("category").value);
     formData.append("whatsapp", document.getElementById("whatsapp").value);
 
-    console.log("Sending request...");
+    console.log("Sending request to server...");
 
     const res = await fetch(API + "/reels/upload", {
       method: "POST",
       headers: {
-        "Authorization": "Bearer " + token
+        Authorization: "Bearer " + token
       },
       body: formData
     });
 
-    console.log("Response status:", res.status);
+    console.log("STATUS:", res.status);
 
-    const data = await res.json();
-    console.log("Response:", data);
+    const text = await res.text();
+    console.log("RAW RESPONSE:", text);
 
-    alert(data.message || data.error);
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.log("JSON parse error");
+      data = { error: text };
+    }
+
+    console.log("FINAL RESPONSE:", data);
+
+    alert(data.message || data.error || "Unknown response");
 
   } catch (err) {
     console.log("UPLOAD ERROR:", err);
     alert("Upload failed ❌ Check console");
   }
 }
-
 </script>
 
 </body>
