@@ -39,8 +39,13 @@ hr { margin: 20px 0; border: 0.5px solid #555; }
 <button onclick="uploadReel()">Upload Reel</button>
 
 <script>
+<script>
 const API = "https://business-reels-backend.onrender.com";
-let token = "";
+
+// ✅ SAFE TOKEN HANDLING
+function getToken() {
+  return localStorage.getItem("token");
+}
 
 // REGISTER
 async function register() {
@@ -72,49 +77,59 @@ async function login() {
   const data = await res.json();
 
   if(data.token){
-    token = data.token;
-    localStorage.setItem("token", token);
+    localStorage.setItem("token", data.token);
     alert("Login Successful ✅");
   } else {
     alert(data.error);
   }
 }
 
-// AUTO TOKEN
-if(localStorage.getItem("token")){
-  token = localStorage.getItem("token");
-}
-
-// 🔥 UPLOAD FUNCTION (IMPORTANT)
+// UPLOAD
 async function uploadReel() {
-  if(!token){
-    alert("Login first!");
-    return;
+  try {
+    const token = getToken();
+
+    if(!token){
+      alert("Login first!");
+      return;
+    }
+
+    const file = document.getElementById("video").files[0];
+    if(!file){
+      alert("Please select video!");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("video", file);
+    formData.append("businessName", businessName.value);
+    formData.append("website", website.value);
+    formData.append("category", category.value);
+    formData.append("whatsapp", whatsapp.value);
+
+    console.log("Uploading...");
+
+    const res = await fetch(API + "/reels/upload", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + token
+      },
+      body: formData
+    });
+
+    const data = await res.json();
+    console.log("Response:", data);
+
+    if(!res.ok){
+      throw new Error(data.error || "Upload failed");
+    }
+
+    alert("Uploaded ✅");
+
+  } catch(err){
+    console.error(err);
+    alert("Error ❌ " + err.message);
   }
-
-  const file = document.getElementById("video").files[0];
-  if(!file){
-    alert("Please select video!");
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append("video", file);
-  formData.append("businessName", document.getElementById("businessName").value);
-  formData.append("website", document.getElementById("website").value);
-  formData.append("category", document.getElementById("category").value);
-  formData.append("whatsapp", document.getElementById("whatsapp").value);
-
-  const res = await fetch(API + "/reels/upload", {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer " + token
-    },
-    body: formData
-  });
-
-  const data = await res.json();
-  alert(data.message || data.error);
 }
 </script>
 
