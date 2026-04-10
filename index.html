@@ -94,6 +94,8 @@ async function login() {
 // UPLOAD REEL
 async function uploadReel() {
   try {
+    console.log("UPLOAD CLICKED");
+
     if (!token) {
       alert("Please login first!");
       return;
@@ -112,6 +114,8 @@ async function uploadReel() {
     formData.append("category", document.getElementById("category").value);
     formData.append("whatsapp", document.getElementById("whatsapp").value);
 
+    console.log("Sending request...");
+
     const res = await fetch(API + "/reels/upload", {
       method: "POST",
       headers: {
@@ -120,14 +124,19 @@ async function uploadReel() {
       body: formData
     });
 
+    console.log("Response status:", res.status);
+
     const data = await res.json();
+    console.log("Response:", data);
+
     alert(data.message || data.error);
 
   } catch (err) {
-    console.log(err);
-    alert("Upload failed ❌ Server error");
+    console.log("UPLOAD ERROR:", err);
+    alert("Upload failed ❌ Check console");
   }
 }
+
 </script>
 
 </body>
