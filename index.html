@@ -35,13 +35,18 @@ button {
 
 <!-- LOGIN -->
 <h3>Login</h3>
+
 <input type="text" id="email" placeholder="Email">
 <input type="password" id="password" placeholder="Password">
+<input type="text" id="city" placeholder="City">
+
 <button type="button" onclick="login()">LOGIN</button>
 
 <hr>
 
 <!-- UPLOAD -->
+<h3>Upload Reel</h3>
+
 <input type="file" id="video">
 
 <input type="text" id="businessName" placeholder="Business Name">
@@ -56,7 +61,7 @@ button {
 const API = "https://business-reels-backend.onrender.com";
 let token = null;
 
-/* ================= TOKEN LOAD ================= */
+/* ================= LOAD TOKEN ================= */
 function loadToken() {
   token = localStorage.getItem("token");
   console.log("🔑 TOKEN:", token);
@@ -94,16 +99,13 @@ async function login() {
   }
 }
 
-/* ================= UPLOAD FUNCTION (GLOBAL SAFE) ================= */
+/* ================= UPLOAD FUNCTION ================= */
 window.uploadReel = async function () {
 
   console.log("🟢 STEP 1 CLICKED");
-  alert("UPLOAD CLICKED");
 
   try {
     loadToken();
-
-    console.log("STEP 2 TOKEN:", token);
 
     if (!token || token === "null" || token === "undefined") {
       alert("❌ Login required");
@@ -113,9 +115,11 @@ window.uploadReel = async function () {
     const file = document.getElementById("video").files[0];
 
     if (!file) {
-      alert("❌ Select file first");
+      alert("❌ Select video file");
       return;
     }
+
+    const city = document.getElementById("city").value;
 
     console.log("FILE:", file.name);
 
@@ -125,6 +129,7 @@ window.uploadReel = async function () {
     formData.append("website", document.getElementById("website").value);
     formData.append("category", document.getElementById("category").value);
     formData.append("whatsapp", document.getElementById("whatsapp").value);
+    formData.append("city", city); // ✅ NEW FIELD
 
     console.log("📦 SENDING REQUEST...");
 
@@ -136,9 +141,8 @@ window.uploadReel = async function () {
       body: formData
     });
 
-    console.log("STATUS:", res.status);
-
     const data = await res.json();
+
     console.log("RESPONSE:", data);
 
     if (!res.ok) {
