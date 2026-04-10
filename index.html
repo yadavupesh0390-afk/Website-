@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Business Reel Upload Test</title>
+
 <style>
 body { font-family: Arial; padding: 20px; background: #111; color: #fff; }
 input, button { margin: 5px 0; padding: 10px; width: 100%; }
@@ -11,6 +12,7 @@ button { background: #ff004f; color: white; border: none; border-radius: 5px; cu
 hr { margin: 20px 0; border: 0.5px solid #555; }
 </style>
 </head>
+
 <body>
 
 <h2>Business Reel Upload Test</h2>
@@ -29,10 +31,11 @@ hr { margin: 20px 0; border: 0.5px solid #555; }
 <input type="text" id="businessName" placeholder="Business Name">
 <input type="text" id="website" placeholder="Business Website URL">
 <input type="text" id="category" placeholder="Category (education/shop/service/tech)">
+<input type="text" id="whatsapp" placeholder="WhatsApp Number (91XXXXXXXXXX)">
 <button onclick="uploadReel()">Upload Reel</button>
 
 <script>
-const API = "https://business-reels-backend.onrender.com"; // Your backend URL
+const API = "https://business-reels-backend.onrender.com";
 let token = "";
 
 // TEST VIDEO
@@ -49,6 +52,7 @@ async function register() {
     headers: {"Content-Type":"application/json"},
     body: JSON.stringify({ email, password, city })
   });
+
   const data = await res.json();
   alert(data.message || data.error);
 }
@@ -63,13 +67,21 @@ async function login() {
     headers: {"Content-Type":"application/json"},
     body: JSON.stringify({ email, password })
   });
+
   const data = await res.json();
+
   if(data.token){
     token = data.token;
+    localStorage.setItem("token", token); // save login
     alert("Login Successful ✅");
   } else {
     alert("Login Failed ❌: " + (data.error || "Unknown"));
   }
+}
+
+// AUTO LOAD TOKEN
+if(localStorage.getItem("token")){
+  token = localStorage.getItem("token");
 }
 
 // UPLOAD REEL
@@ -83,6 +95,7 @@ async function uploadReel() {
   const businessName = document.getElementById("businessName").value || "Test Business";
   const website = document.getElementById("website").value || "https://example.com";
   const category = document.getElementById("category").value || "shop";
+  const whatsapp = document.getElementById("whatsapp").value;
 
   const res = await fetch(API + "/reels/upload", {
     method: "POST",
@@ -90,8 +103,9 @@ async function uploadReel() {
       "Content-Type": "application/json",
       "Authorization": "Bearer " + token
     },
-    body: JSON.stringify({ videoUrl, businessName, website, category })
+    body: JSON.stringify({ videoUrl, businessName, website, category, whatsapp })
   });
+
   const data = await res.json();
   alert(data.message || data.error);
 }
