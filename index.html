@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Upload Debug Final FIX</title>
+<title>Reel Upload</title>
 
 <style>
 body {
@@ -31,113 +31,84 @@ button {
 
 <body>
 
-<h2>🚀 UPLOAD DEBUG FINAL FIX</h2>
-
-<!-- LOGIN -->
-<h3>Login</h3>
-
-<input type="text" id="email" placeholder="Email">
-<input type="password" id="password" placeholder="Password">
-<input type="text" id="city" placeholder="City">
-
-<button type="button" onclick="login()">LOGIN</button>
-
-<hr>
-
-<!-- UPLOAD -->
-<h3>Upload Reel</h3>
+<h2>🚀 Reel Upload</h2>
 
 <input type="file" id="video">
 
 <input type="text" id="businessName" placeholder="Business Name">
 <input type="text" id="website" placeholder="Website">
-<input type="text" id="category" placeholder="Category">
-<input type="text" id="whatsapp" placeholder="WhatsApp">
 
-<button type="button" id="uploadBtn">UPLOAD TEST</button>
+<p id="locationStatus">📍 Detecting location...</p>
+
+<button id="uploadBtn">UPLOAD</button>
 
 <script>
 
 const API = "https://business-reels-backend.onrender.com";
-let token = null;
 
-/* ================= LOAD TOKEN ================= */
-function loadToken() {
-  token = localStorage.getItem("token");
-  console.log("🔑 TOKEN:", token);
-}
+// ✅ FIXED WHATSAPP
+const FIXED_WHATSAPP = "919473549700";
 
-/* ================= LOGIN ================= */
-async function login() {
-  console.log("LOGIN CLICKED");
+let city = "";
 
-  try {
-    const res = await fetch(API + "/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: document.getElementById("email").value,
-        password: document.getElementById("password").value
-      })
+/* ================= GET LOCATION ================= */
+function getLocation() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+
+      console.log("📍 LAT:", lat, "LNG:", lng);
+
+      // 👉 Reverse geocoding (simple city set)
+      city = "UserCity"; // 🔥 You can replace with real API later
+
+      document.getElementById("locationStatus").innerText = "📍 Location detected";
+
+    }, () => {
+      document.getElementById("locationStatus").innerText = "❌ Location permission denied";
     });
-
-    const data = await res.json();
-    console.log("LOGIN RESPONSE:", data);
-
-    if (data.token) {
-      token = data.token;
-      localStorage.setItem("token", token);
-      alert("Login Successful ✅");
-      console.log("TOKEN SAVED:", token);
-    } else {
-      alert(data.error || "Login failed ❌");
-    }
-
-  } catch (err) {
-    console.log("LOGIN ERROR:", err);
-    alert("Login request failed");
+  } else {
+    document.getElementById("locationStatus").innerText = "❌ Location not supported";
   }
 }
 
-/* ================= UPLOAD FUNCTION ================= */
-window.uploadReel = async function () {
+getLocation();
 
-  console.log("🟢 STEP 1 CLICKED");
+/* ================= UPLOAD ================= */
+async function uploadReel() {
+
+  console.log("UPLOAD CLICKED");
+
+  const file = document.getElementById("video").files[0];
+
+  if (!file) {
+    alert("❌ Select video file");
+    return;
+  }
+
+  const businessName = document.getElementById("businessName").value;
+
+  if (!businessName) {
+    alert("❌ Business name required");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("video", file);
+  formData.append("businessName", businessName);
+  formData.append("website", document.getElementById("website").value);
+
+  // ✅ FIXED VALUES
+  formData.append("whatsapp", FIXED_WHATSAPP);
+  formData.append("city", city);
+
+  console.log("📦 Sending...");
 
   try {
-    loadToken();
-
-    if (!token || token === "null" || token === "undefined") {
-      alert("❌ Login required");
-      return;
-    }
-
-    const file = document.getElementById("video").files[0];
-
-    if (!file) {
-      alert("❌ Select video file");
-      return;
-    }
-
-    const city = document.getElementById("city").value;
-
-    console.log("FILE:", file.name);
-
-    const formData = new FormData();
-    formData.append("video", file);
-    formData.append("businessName", document.getElementById("businessName").value);
-    formData.append("website", document.getElementById("website").value);
-    formData.append("category", document.getElementById("category").value);
-    formData.append("whatsapp", document.getElementById("whatsapp").value);
-    formData.append("city", city); // ✅ NEW FIELD
-
-    console.log("📦 SENDING REQUEST...");
-
     const res = await fetch(API + "/reels/upload", {
       method: "POST",
-      headers: {
-        Authorization: "Bearer " + token
-      },
       body: formData
     });
 
@@ -146,19 +117,19 @@ window.uploadReel = async function () {
     console.log("RESPONSE:", data);
 
     if (!res.ok) {
-      alert("❌ ERROR: " + (data.error || "Upload failed"));
+      alert("❌ " + (data.error || "Upload failed"));
       return;
     }
 
-    alert("✅ UPLOAD SUCCESS");
+    alert("✅ Upload Success");
 
   } catch (err) {
-    console.log("UPLOAD ERROR:", err);
-    alert("Request failed");
+    console.log("ERROR:", err);
+    alert("Upload failed");
   }
-};
+}
 
-/* ================= BUTTON BIND ================= */
+/* ================= BUTTON ================= */
 document.getElementById("uploadBtn").addEventListener("click", uploadReel);
 
 </script>
