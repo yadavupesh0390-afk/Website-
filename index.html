@@ -50,28 +50,38 @@ const API = "https://business-reels-backend.onrender.com";
 const FIXED_WHATSAPP = "919473549700";
 
 let city = "";
+let lat = "";
+let lng = "";
+
+/* ================= LOAD TOKEN ================= */
+function getToken(){
+  return localStorage.getItem("token");
+}
 
 /* ================= GET LOCATION ================= */
 function getLocation() {
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      
-      const lat = pos.coords.latitude;
-      const lng = pos.coords.longitude;
 
-      console.log("📍 LAT:", lat, "LNG:", lng);
-
-      // 👉 Reverse geocoding (simple city set)
-      city = "UserCity"; // 🔥 You can replace with real API later
-
-      document.getElementById("locationStatus").innerText = "📍 Location detected";
-
-    }, () => {
-      document.getElementById("locationStatus").innerText = "❌ Location permission denied";
-    });
-  } else {
+  if (!navigator.geolocation) {
     document.getElementById("locationStatus").innerText = "❌ Location not supported";
+    return;
   }
+
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+
+    lat = pos.coords.latitude;
+    lng = pos.coords.longitude;
+
+    console.log("📍 LAT:", lat, "LNG:", lng);
+
+    // 👉 fallback city
+    city = "Unknown";
+
+    document.getElementById("locationStatus").innerText = "📍 Location detected";
+
+  }, (err) => {
+    console.log("LOCATION ERROR:", err);
+    document.getElementById("locationStatus").innerText = "❌ Location permission denied";
+  });
 }
 
 getLocation();
@@ -79,7 +89,14 @@ getLocation();
 /* ================= UPLOAD ================= */
 async function uploadReel() {
 
-  console.log("UPLOAD CLICKED");
+  console.log("🚀 UPLOAD CLICKED");
+
+  const token = getToken();
+
+  if (!token) {
+    alert("❌ Please login first");
+    return;
+  }
 
   const file = document.getElementById("video").files[0];
 
@@ -88,43 +105,64 @@ async function uploadReel() {
     return;
   }
 
-  const businessName = document.getElementById("businessName").value;
+  if (file.size > 100 * 1024 * 1024) {
+    alert("❌ Max file size 100MB");
+    return;
+  }
+
+  const businessName = document.getElementById("businessName").value.trim();
 
   if (!businessName) {
     alert("❌ Business name required");
     return;
   }
 
+  const website = document.getElementById("website").value.trim();
+
   const formData = new FormData();
   formData.append("video", file);
   formData.append("businessName", businessName);
-  formData.append("website", document.getElementById("website").value);
+  formData.append("website", website);
 
-  // ✅ FIXED VALUES
+  // ✅ AUTO VALUES
   formData.append("whatsapp", FIXED_WHATSAPP);
   formData.append("city", city);
+  formData.append("lat", lat);
+  formData.append("lng", lng);
 
-  console.log("📦 Sending...");
+  console.log("📦 Sending request...");
 
   try {
+
     const res = await fetch(API + "/reels/upload", {
       method: "POST",
+      headers: {
+        Authorization: "Bearer " + token // ✅ FIXED
+      },
       body: formData
     });
 
-    const data = await res.json();
+    console.log("📡 STATUS:", res.status);
 
-    console.log("RESPONSE:", data);
+    const text = await res.text();
+    console.log("RAW:", text);
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { error: text };
+    }
 
     if (!res.ok) {
       alert("❌ " + (data.error || "Upload failed"));
       return;
     }
 
-    alert("✅ Upload Success");
+    alert("✅ Upload Success 🚀");
 
   } catch (err) {
-    console.log("ERROR:", err);
+    console.log("❌ ERROR:", err);
     alert("Upload failed");
   }
 }
