@@ -35,9 +35,6 @@ button {
 
 <input type="file" id="video">
 
-<input type="text" id="businessName" placeholder="Business Name">
-<input type="text" id="website" placeholder="Website">
-
 <p id="locationStatus">📍 Detecting location...</p>
 
 <button id="uploadBtn">UPLOAD</button>
@@ -46,19 +43,21 @@ button {
 
 const API = "https://business-reels-backend.onrender.com";
 
-// ✅ FIXED WHATSAPP
+// ✅ FIXED DATA
 const FIXED_WHATSAPP = "919473549700";
+const FIXED_BUSINESS = "Webnestic Tech Up";
+const FIXED_WEBSITE = "https://website-umber-three-78.vercel.app/";
 
 let city = "";
 let lat = "";
 let lng = "";
 
-/* ================= LOAD TOKEN ================= */
+/* ================= TOKEN ================= */
 function getToken(){
   return localStorage.getItem("token");
 }
 
-/* ================= GET LOCATION ================= */
+/* ================= LOCATION ================= */
 function getLocation() {
 
   if (!navigator.geolocation) {
@@ -66,21 +65,19 @@ function getLocation() {
     return;
   }
 
-  navigator.geolocation.getCurrentPosition(async (pos) => {
+  navigator.geolocation.getCurrentPosition((pos) => {
 
     lat = pos.coords.latitude;
     lng = pos.coords.longitude;
 
-    console.log("📍 LAT:", lat, "LNG:", lng);
-
-    // 👉 fallback city
     city = "Unknown";
+
+    console.log("📍 LAT:", lat, "LNG:", lng);
 
     document.getElementById("locationStatus").innerText = "📍 Location detected";
 
-  }, (err) => {
-    console.log("LOCATION ERROR:", err);
-    document.getElementById("locationStatus").innerText = "❌ Location permission denied";
+  }, () => {
+    document.getElementById("locationStatus").innerText = "❌ Location denied";
   });
 }
 
@@ -110,49 +107,32 @@ async function uploadReel() {
     return;
   }
 
-  const businessName = document.getElementById("businessName").value.trim();
-
-  if (!businessName) {
-    alert("❌ Business name required");
-    return;
-  }
-
-  const website = document.getElementById("website").value.trim();
-
   const formData = new FormData();
   formData.append("video", file);
-  formData.append("businessName", businessName);
-  formData.append("website", website);
 
-  // ✅ AUTO VALUES
+  // ✅ FIXED VALUES (NO INPUT)
+  formData.append("businessName", FIXED_BUSINESS);
+  formData.append("website", FIXED_WEBSITE);
   formData.append("whatsapp", FIXED_WHATSAPP);
   formData.append("city", city);
   formData.append("lat", lat);
   formData.append("lng", lng);
 
-  console.log("📦 Sending request...");
+  console.log("📦 Sending...");
 
   try {
 
     const res = await fetch(API + "/reels/upload", {
       method: "POST",
       headers: {
-        Authorization: "Bearer " + token // ✅ FIXED
+        Authorization: "Bearer " + token
       },
       body: formData
     });
 
-    console.log("📡 STATUS:", res.status);
+    const data = await res.json();
 
-    const text = await res.text();
-    console.log("RAW:", text);
-
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = { error: text };
-    }
+    console.log("RESPONSE:", data);
 
     if (!res.ok) {
       alert("❌ " + (data.error || "Upload failed"));
@@ -162,7 +142,7 @@ async function uploadReel() {
     alert("✅ Upload Success 🚀");
 
   } catch (err) {
-    console.log("❌ ERROR:", err);
+    console.log("ERROR:", err);
     alert("Upload failed");
   }
 }
