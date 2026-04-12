@@ -112,18 +112,31 @@ loadMusic();
    🎵 FIXED MUSIC PLAYER
 ========================= */
 previewBtn.onclick = async () => {
+
   if (!musicSelect.value) {
     alert("Select music first");
     return;
   }
 
   try {
+
+    // 👉 STOP CASE
+    if (musicAudio && !musicAudio.paused) {
+      musicAudio.pause();
+      musicAudio.currentTime = 0;
+
+      previewBtn.innerText = "▶️ Preview Music";
+      isPlaying = false;
+
+      return;
+    }
+
+    // 👉 PLAY CASE
     if (musicAudio) {
       musicAudio.pause();
       musicAudio = null;
     }
 
-    // IMPORTANT: full URL fix
     let url = musicSelect.value.startsWith("http")
       ? musicSelect.value
       : API + musicSelect.value;
@@ -139,7 +152,7 @@ previewBtn.onclick = async () => {
 
   } catch (err) {
     console.log("Audio Error:", err);
-    alert("❌ Music load/play failed. URL check karo ya format issue hai.");
+    alert("❌ Music load/play failed");
   }
 };
 /* =========================
