@@ -48,7 +48,7 @@ video{
 
 <h3>🎵 Select Music</h3>
 <select id="musicSelect">
-  <option value="">-- No Music --</option>
+  <option value="">-- No Music (Voice Only) --</option>
 </select>
 
 <hr>
@@ -62,12 +62,10 @@ video{
 <script>
 const API = "https://business-reels-backend.onrender.com";
 
-// ✅ FIXED DATA
 const FIXED_WHATSAPP = "919473549700";
 const FIXED_BUSINESS = "Webnestic Tech Up";
 const FIXED_WEBSITE = "https://webnestic-tech-up.vercel.app/";
 
-// 🎵 YOUR 10 MUSIC LIST (🔥 CHANGE LINKS HERE)
 const MUSIC_LIST = [
   {name:"Song 1", url:"music/song1.mp3"},
   {name:"Song 2", url:"music/song2.mp3"},
@@ -87,9 +85,10 @@ let chunks=[];
 let recordedBlob=null;
 let musicAudio = new Audio();
 
-/* ================= LOAD MUSIC ================= */
 const musicSelect = document.getElementById("musicSelect");
+const statusText = document.getElementById("status");
 
+/* ================= MUSIC LOAD ================= */
 MUSIC_LIST.forEach((m)=>{
   let opt = document.createElement("option");
   opt.value = m.url;
@@ -100,7 +99,10 @@ MUSIC_LIST.forEach((m)=>{
 musicSelect.onchange = ()=>{
   if(musicSelect.value){
     musicAudio.src = musicSelect.value;
-    alert("🎵 Music Selected");
+    statusText.innerText = "🎵 Music Selected";
+  }else{
+    musicAudio.src = "";
+    statusText.innerText = "🎤 Voice only mode";
   }
 };
 
@@ -108,7 +110,9 @@ musicSelect.onchange = ()=>{
 navigator.geolocation.getCurrentPosition(pos=>{
   lat = pos.coords.latitude;
   lng = pos.coords.longitude;
-  status.innerText = "📍 Location detected";
+  statusText.innerText = "📍 Location detected";
+},()=>{
+  statusText.innerText = "⚠️ Location denied";
 });
 
 /* ================= CAMERA ================= */
@@ -121,23 +125,31 @@ async function startCamera(){
 
     preview.srcObject = stream;
 
-    // 🔥 AUDIO MIX SYSTEM
-    const ctx = new AudioContext();
-    const dest = ctx.createMediaStreamDestination();
+    let finalStream;
 
-    const mic = ctx.createMediaStreamSource(stream);
-    mic.connect(dest);
+    if(musicAudio.src){
+      // 🔥 WITH MUSIC
+      const ctx = new AudioContext();
+      const dest = ctx.createMediaStreamDestination();
 
-    const musicSource = ctx.createMediaElementSource(musicAudio);
-    musicSource.connect(dest);
-    musicSource.connect(ctx.destination);
+      const mic = ctx.createMediaStreamSource(stream);
+      mic.connect(dest);
 
-    const combined = new MediaStream([
-      ...stream.getVideoTracks(),
-      ...dest.stream.getAudioTracks()
-    ]);
+      const musicSource = ctx.createMediaElementSource(musicAudio);
+      musicSource.connect(dest);
+      musicSource.connect(ctx.destination);
 
-    mediaRecorder = new MediaRecorder(combined);
+      finalStream = new MediaStream([
+        ...stream.getVideoTracks(),
+        ...dest.stream.getAudioTracks()
+      ]);
+
+    }else{
+      // 🔥 VOICE ONLY
+      finalStream = stream;
+    }
+
+    mediaRecorder = new MediaRecorder(finalStream);
 
     mediaRecorder.ondataavailable = e=>{
       if(e.data.size>0) chunks.push(e.data);
@@ -149,6 +161,8 @@ async function startCamera(){
       preview.src = URL.createObjectURL(recordedBlob);
       preview.controls = true;
     };
+
+    statusText.innerText = "📷 Camera Ready";
 
   }catch(err){
     alert("Camera permission denied ❌");
@@ -165,24 +179,26 @@ recordBtn.onclick = ()=>{
   chunks=[];
   mediaRecorder.start();
 
-  // 🎵 play music
   if(musicAudio.src){
     musicAudio.currentTime = 0;
     musicAudio.play();
+    statusText.innerText="🎥 Recording with music...";
+  }else{
+    statusText.innerText="🎥 Recording (voice only)...";
   }
 
   recordBtn.disabled=true;
   stopBtn.disabled=false;
-  status.innerText="🎥 Recording...";
 };
 
+/* ================= STOP ================= */
 stopBtn.onclick = ()=>{
   mediaRecorder.stop();
   musicAudio.pause();
 
   recordBtn.disabled=false;
   stopBtn.disabled=true;
-  status.innerText="✅ Recording Done";
+  statusText.innerText="✅ Recording Done";
 };
 
 /* ================= UPLOAD ================= */
