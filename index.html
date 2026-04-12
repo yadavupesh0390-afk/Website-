@@ -15,32 +15,53 @@ body {
 
 input, button {
   width: 100%;
-  padding: 10px;
-  margin: 5px 0;
-  box-sizing: border-box;
+  padding: 12px;
+  margin: 8px 0;
+  border-radius: 10px;
+  border: none;
 }
 
 button {
   background: #ff004f;
-  border: none;
   color: white;
   cursor: pointer;
+}
+
+video {
+  width: 100%;
+  margin-top: 10px;
+  border-radius: 10px;
+}
+
+#recordBtn{
+  background:#00c853;
+}
+
+#stopBtn{
+  background:#d50000;
 }
 </style>
 </head>
 
 <body>
 
-<h2>🚀 Reel Upload</h2>
+<h2>🎬 Reel Upload (Instagram Style)</h2>
+
+<!-- CAMERA PREVIEW -->
+<video id="preview" autoplay muted playsinline></video>
+
+<button id="recordBtn">🎥 Start Recording</button>
+<button id="stopBtn" disabled>⏹ Stop Recording</button>
+
+<hr>
 
 <input type="file" id="video">
 
 <p id="locationStatus">📍 Detecting location...</p>
 
-<button id="uploadBtn">UPLOAD</button>
+<button id="uploadBtn">🚀 Upload Reel</button>
 
 <script>
-
 const API = "https://business-reels-backend.onrender.com";
 
 // ✅ FIXED DATA
@@ -52,6 +73,10 @@ let city = "";
 let lat = "";
 let lng = "";
 
+let mediaRecorder;
+let recordedChunks = [];
+let recordedBlob = null;
+
 /* ================= TOKEN ================= */
 function getToken(){
   return localStorage.getItem("token");
@@ -59,20 +84,12 @@ function getToken(){
 
 /* ================= LOCATION ================= */
 function getLocation() {
-
-  if (!navigator.geolocation) {
-    document.getElementById("locationStatus").innerText = "❌ Location not supported";
-    return;
-  }
+  if (!navigator.geolocation) return;
 
   navigator.geolocation.getCurrentPosition((pos) => {
-
     lat = pos.coords.latitude;
     lng = pos.coords.longitude;
-
     city = "Unknown";
-
-    console.log("📍 LAT:", lat, "LNG:", lng);
 
     document.getElementById("locationStatus").innerText = "📍 Location detected";
 
@@ -80,37 +97,77 @@ function getLocation() {
     document.getElementById("locationStatus").innerText = "❌ Location denied";
   });
 }
-
 getLocation();
 
-/* ================= UPLOAD ================= */
-async function uploadReel() {
+/* ================= CAMERA SETUP ================= */
+async function startCamera(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video:true,
+      audio:true
+    });
 
-  console.log("🚀 UPLOAD CLICKED");
+    preview.srcObject = stream;
+
+    mediaRecorder = new MediaRecorder(stream);
+
+    mediaRecorder.ondataavailable = (e)=>{
+      if(e.data.size > 0){
+        recordedChunks.push(e.data);
+      }
+    };
+
+    mediaRecorder.onstop = ()=>{
+      recordedBlob = new Blob(recordedChunks, { type: "video/webm" });
+      preview.srcObject = null;
+      preview.src = URL.createObjectURL(recordedBlob);
+      preview.controls = true;
+    };
+
+  }catch(err){
+    alert("Camera permission denied ❌");
+  }
+}
+
+startCamera();
+
+/* ================= RECORD ================= */
+recordBtn.onclick = ()=>{
+  recordedChunks = [];
+  mediaRecorder.start();
+
+  recordBtn.disabled = true;
+  stopBtn.disabled = false;
+};
+
+stopBtn.onclick = ()=>{
+  mediaRecorder.stop();
+
+  recordBtn.disabled = false;
+  stopBtn.disabled = true;
+};
+
+/* ================= UPLOAD ================= */
+async function uploadReel(){
 
   const token = getToken();
 
-  if (!token) {
-    alert("❌ Please login first");
-    return;
+  if (!token) return alert("Login first ❌");
+
+  let file;
+
+  // 🎥 PRIORITY: RECORDED VIDEO
+  if(recordedBlob){
+    file = new File([recordedBlob], "reel.webm");
+  }else{
+    file = document.getElementById("video").files[0];
   }
 
-  const file = document.getElementById("video").files[0];
-
-  if (!file) {
-    alert("❌ Select video file");
-    return;
-  }
-
-  if (file.size > 100 * 1024 * 1024) {
-    alert("❌ Max file size 100MB");
-    return;
-  }
+  if (!file) return alert("Record or select video ❌");
 
   const formData = new FormData();
   formData.append("video", file);
 
-  // ✅ FIXED VALUES (NO INPUT)
   formData.append("businessName", FIXED_BUSINESS);
   formData.append("website", FIXED_WEBSITE);
   formData.append("whatsapp", FIXED_WHATSAPP);
@@ -118,10 +175,7 @@ async function uploadReel() {
   formData.append("lat", lat);
   formData.append("lng", lng);
 
-  console.log("📦 Sending...");
-
-  try {
-
+  try{
     const res = await fetch(API + "/reels/upload", {
       method: "POST",
       headers: {
@@ -132,23 +186,17 @@ async function uploadReel() {
 
     const data = await res.json();
 
-    console.log("RESPONSE:", data);
-
-    if (!res.ok) {
-      alert("❌ " + (data.error || "Upload failed"));
-      return;
-    }
+    if (!res.ok) return alert("❌ " + data.error);
 
     alert("✅ Upload Success 🚀");
 
-  } catch (err) {
-    console.log("ERROR:", err);
-    alert("Upload failed");
+  }catch(err){
+    alert("Upload failed ❌");
   }
 }
 
 /* ================= BUTTON ================= */
-document.getElementById("uploadBtn").addEventListener("click", uploadReel);
+uploadBtn.onclick = uploadReel;
 
 </script>
 
