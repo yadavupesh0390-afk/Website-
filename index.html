@@ -87,7 +87,6 @@ let mediaRecorder;
 let chunks = [];
 let recordedBlob = null;
 let musicAudio = null;
-let isPlaying = false;
 
 /* =========================
    🎵 LOAD MUSIC
@@ -105,38 +104,28 @@ async function loadMusic(){
     musicSelect.appendChild(opt);
   });
 }
-
 loadMusic();
 
 /* =========================
-   🎵 FIXED MUSIC PLAYER
+   🎵 MUSIC TOGGLE FIXED
 ========================= */
 previewBtn.onclick = async () => {
 
-  if (!musicSelect.value) {
-    alert("Select music first");
-    return;
-  }
+  if (!musicSelect.value) return alert("Select music first");
 
   try {
 
-    // 👉 STOP CASE
+    // STOP
     if (musicAudio && !musicAudio.paused) {
       musicAudio.pause();
       musicAudio.currentTime = 0;
+      musicAudio = null;
 
       previewBtn.innerText = "▶️ Preview Music";
-      isPlaying = false;
-
       return;
     }
 
-    // 👉 PLAY CASE
-    if (musicAudio) {
-      musicAudio.pause();
-      musicAudio = null;
-    }
-
+    // PLAY
     let url = musicSelect.value.startsWith("http")
       ? musicSelect.value
       : API + musicSelect.value;
@@ -148,13 +137,13 @@ previewBtn.onclick = async () => {
     await musicAudio.play();
 
     previewBtn.innerText = "⏸ Stop Music";
-    isPlaying = true;
 
   } catch (err) {
-    console.log("Audio Error:", err);
-    alert("❌ Music load/play failed");
+    console.log(err);
+    alert("❌ Music play error");
   }
 };
+
 /* =========================
    📍 LOCATION
 ========================= */
@@ -209,19 +198,22 @@ stopBtn.onclick = () => {
 };
 
 /* =========================
-   🖼 SLIDESHOW
+   🖼 SLIDESHOW (FIXED HD + AUDIO)
 ========================= */
 async function previewImageVideo(){
 
   const files = document.getElementById("imageInput").files;
-
   if(!files.length) return alert("Select images");
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
 
-  canvas.width = 720;
-  canvas.height = 1280;
+  // 🔥 HD QUALITY FIX
+  canvas.width = 1080;
+  canvas.height = 1920;
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
 
   let images = [];
 
@@ -232,9 +224,21 @@ async function previewImageVideo(){
     images.push(img);
   }
 
-  const stream = canvas.captureStream(30);
-  const recorder = new MediaRecorder(stream);
+  const canvasStream = canvas.captureStream(30);
+  const audioStream = musicAudio ? musicAudio.captureStream() : null;
 
+  let finalStream;
+
+  if(audioStream){
+    finalStream = new MediaStream([
+      ...canvasStream.getVideoTracks(),
+      ...audioStream.getAudioTracks()
+    ]);
+  } else {
+    finalStream = canvasStream;
+  }
+
+  const recorder = new MediaRecorder(finalStream);
   let data = [];
 
   recorder.ondataavailable = e => {
@@ -262,7 +266,7 @@ async function previewImageVideo(){
       i++;
       if(i < images.length){
         draw();
-      }else{
+      } else {
         recorder.stop();
       }
     },2000);
@@ -272,12 +276,9 @@ async function previewImageVideo(){
 
   recorder.onstop = () => {
     recordedBlob = new Blob(data, {type:"video/webm"});
-
-    preview.srcObject = null;
     preview.src = URL.createObjectURL(recordedBlob);
     preview.controls = true;
-
-    statusText.innerText = "✅ Slideshow Ready";
+    statusText.innerText = "✅ Slideshow Ready (HD + Music)";
   };
 }
 
@@ -290,7 +291,6 @@ async function uploadReel(){
   if(!token) return alert("Login first");
 
   let file = recordedBlob || document.getElementById("video").files[0];
-
   if(!file) return alert("No media selected");
 
   const fd = new FormData();
