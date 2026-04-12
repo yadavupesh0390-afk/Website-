@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reel Creator Pro</title>
+<title>Reel Creator PRO</title>
 
 <style>
 body{
@@ -12,6 +12,7 @@ body{
   font-family:Arial;
   padding:20px;
 }
+
 button,input,select{
   width:100%;
   padding:12px;
@@ -19,12 +20,14 @@ button,input,select{
   border-radius:10px;
   border:none;
 }
+
 button{background:#ff004f;color:white;}
 video{
   width:100%;
   border-radius:10px;
   margin-top:10px;
 }
+
 #recordBtn{background:#00c853;}
 #stopBtn{background:#d50000;}
 </style>
@@ -42,132 +45,80 @@ video{
 
 <hr>
 
-<h3>🎵 Select Music</h3>
-<select id="musicSelect">
-  <option value="">-- Voice Only --</option>
-</select>
-
-<button id="previewMusicBtn">▶️ Preview Music</button>
+<h3>🖼 AI Reel (Image)</h3>
+<input type="file" id="imageInput" accept="image/*">
+<button onclick="generateAIReel()">🤖 Generate AI Reel</button>
 
 <hr>
 
-<h3>🖼 Multi Image Slideshow</h3>
-<input type="file" id="imageInput" accept="image/*" multiple>
-<button onclick="previewImageVideo()">👀 Preview Slideshow</button>
+<h3>🎥 Manual Upload Video</h3>
+<input type="file" id="videoInput" accept="video/*">
 
 <hr>
 
-<input type="file" id="video">
+<p id="status">📍 Ready</p>
 
-<p id="status">📍 Detecting location...</p>
-
-<button onclick="uploadReel()">🚀 Upload</button>
-<button onclick="generateAIReel()">🤖 Auto AI Reel</button>
+<button onclick="uploadReel()">🚀 Upload Reel</button>
 
 <script>
+
 const API = "https://business-reels-backend.onrender.com";
 
 const FIXED_WHATSAPP = "919473549700";
 const FIXED_BUSINESS = "Webnestic Tech Up";
 const FIXED_WEBSITE = "https://webnestic-tech-up.vercel.app/";
 
-const MUSIC_LIST = [
-  {name:"Song 1", url:"music/song1.mp3"},
-  {name:"Song 2", url:"music/song2.mp3"},
-  {name:"Song 3", url:"music/song3.mp3"},
-  {name:"Song 4", url:"music/song4.mp3"},
-  {name:"Song 5", url:"music/song5.mp3"}
-];
-
-let lat="", lng="";
 let stream, mediaRecorder;
-let recordedBlob=null;
-let musicAudio = new Audio();
-let isPlaying=false;
+let recordedBlob = null;
 
 const preview = document.getElementById("preview");
 const statusText = document.getElementById("status");
-const musicSelect = document.getElementById("musicSelect");
-const previewBtn = document.getElementById("previewMusicBtn");
-
-const recordBtn = document.getElementById("recordBtn");
-const stopBtn = document.getElementById("stopBtn");
 
 /* STATUS */
 function setStatus(msg){
   statusText.innerText = msg;
 }
 
-/* MUSIC LOAD */
-MUSIC_LIST.forEach(m=>{
-  let opt=document.createElement("option");
-  opt.value=m.url;
-  opt.innerText=m.name;
-  musicSelect.appendChild(opt);
-});
-
-musicSelect.onchange=()=>{
-  musicAudio.src = musicSelect.value || "";
-};
-
-/* MUSIC PREVIEW */
-previewBtn.onclick=()=>{
-  if(!musicAudio.src) return alert("Select music first");
-
-  if(!isPlaying){
-    musicAudio.currentTime=0;
-    musicAudio.play();
-    previewBtn.innerText="⏸ Stop";
-    isPlaying=true;
-  }else{
-    musicAudio.pause();
-    previewBtn.innerText="▶️ Preview Music";
-    isPlaying=false;
-  }
-};
-
-/* LOCATION */
-navigator.geolocation.getCurrentPosition(pos=>{
-  lat=pos.coords.latitude;
-  lng=pos.coords.longitude;
-  setStatus("📍 Location detected");
-});
-
 /* CAMERA */
 async function startCamera(){
-  stream = await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+  stream = await navigator.mediaDevices.getUserMedia({
+    video:true,
+    audio:true
+  });
+
   preview.srcObject = stream;
 }
 
 /* RECORD */
-recordBtn.onclick=()=>{
+document.getElementById("recordBtn").onclick = () => {
+
   if(!stream) return alert("Start camera first");
 
-  let chunks=[];
+  let chunks = [];
   mediaRecorder = new MediaRecorder(stream);
 
-  mediaRecorder.ondataavailable=e=>{
-    if(e.data.size>0) chunks.push(e.data);
+  mediaRecorder.ondataavailable = e => {
+    if(e.data.size > 0) chunks.push(e.data);
   };
 
-  mediaRecorder.onstop=()=>{
-    recordedBlob=new Blob(chunks,{type:"video/webm"});
-    preview.srcObject=null;
-    preview.src=URL.createObjectURL(recordedBlob);
-    preview.controls=true;
+  mediaRecorder.onstop = () => {
+    recordedBlob = new Blob(chunks, {type:"video/webm"});
+    preview.srcObject = null;
+    preview.src = URL.createObjectURL(recordedBlob);
+    preview.controls = true;
   };
 
   mediaRecorder.start();
 
-  recordBtn.disabled=true;
-  stopBtn.disabled=false;
+  document.getElementById("recordBtn").disabled = true;
+  document.getElementById("stopBtn").disabled = false;
 };
 
 /* STOP */
-stopBtn.onclick=()=>{
+document.getElementById("stopBtn").onclick = () => {
   mediaRecorder.stop();
-  recordBtn.disabled=false;
-  stopBtn.disabled=true;
+  document.getElementById("recordBtn").disabled = false;
+  document.getElementById("stopBtn").disabled = true;
 };
 
 /* AI REEL */
@@ -180,20 +131,19 @@ async function generateAIReel(){
   fd.append("image", file);
   fd.append("businessName", FIXED_BUSINESS);
 
-  setStatus("🤖 AI is generating reel...");
+  setStatus("🤖 AI generating...");
 
-  try {
-  const res = await fetch(API + "/ai/generate-reel", {
-    method: "POST",
-    body: fd
-  });
+  try{
+    const res = await fetch(API + "/ai/ai-reel", {
+      method: "POST",
+      body: fd
+    });
 
     const data = await res.json();
 
-    if(!res.ok) throw new Error(data.error || "AI failed");
+    if(!res.ok) throw new Error(data.error);
 
     preview.src = data.videoUrl;
-    preview.load();
     preview.play().catch(()=>{});
     preview.controls = true;
 
@@ -204,123 +154,45 @@ async function generateAIReel(){
   }
 }
 
-/* SLIDESHOW */
-async function imageToVideo(files){
-
-  const canvas=document.createElement("canvas");
-  const ctx=canvas.getContext("2d");
-
-  canvas.width=720;
-  canvas.height=1280;
-
-  let images=[];
-
-  for(let file of files){
-    let img=new Image();
-    img.src=URL.createObjectURL(file);
-    await new Promise(r=>img.onload=r);
-    images.push(img);
-  }
-
-  const canvasStream=canvas.captureStream(30);
-
-  let recorder=new MediaRecorder(canvasStream);
-  let data=[];
-
-  recorder.ondataavailable=e=>{
-    if(e.data.size>0) data.push(e.data);
-  };
-
-  recorder.start();
-
-  let index=0;
-  let duration=2000;
-
-  function draw(){
-
-    let img=images[index];
-
-    let ratio=Math.max(canvas.width/img.width, canvas.height/img.height);
-    let w=img.width*ratio;
-    let h=img.height*ratio;
-
-    let x=(canvas.width-w)/2;
-    let y=(canvas.height-h)/2;
-
-    ctx.drawImage(img,x,y,w,h);
-
-    setTimeout(()=>{
-      index++;
-      if(index<images.length){
-        draw();
-      }else{
-        recorder.stop();
-      }
-    },duration);
-  }
-
-  draw();
-
-  return new Promise(res=>{
-    recorder.onstop=()=>{
-      res(new Blob(data,{type:"video/webm"}));
-    };
-  });
-}
-
-/* PREVIEW */
-async function previewImageVideo(){
-
-  const files=document.getElementById("imageInput").files;
-
-  if(!files.length) return alert("Select images");
-
-  setStatus("⏳ Creating slideshow...");
-
-  const blob=await imageToVideo(files);
-
-  preview.srcObject=null;
-  preview.src=URL.createObjectURL(blob);
-  preview.controls=true;
-
-  recordedBlob=blob;
-
-  setStatus("✅ Preview Ready");
-}
-
-/* UPLOAD */
+/* UPLOAD (AI + MANUAL BOTH) */
 async function uploadReel(){
 
-  const token=localStorage.getItem("token");
-  if(!token) return alert("Login first");
+  const token = localStorage.getItem("token");
+  if(!token) return alert("Login required");
 
-  let file = recordedBlob || document.getElementById("video").files[0];
+  let file =
+    recordedBlob ||
+    document.getElementById("videoInput").files[0];
 
-  if(!file) return alert("No media");
+  if(!file) return alert("No file selected");
 
-  const fd=new FormData();
-  fd.append("video",file);
-  fd.append("businessName",FIXED_BUSINESS);
-  fd.append("website",FIXED_WEBSITE);
-  fd.append("whatsapp",FIXED_WHATSAPP);
-  fd.append("lat",lat);
-  fd.append("lng",lng);
+  const fd = new FormData();
+  fd.append("video", file);
+  fd.append("businessName", FIXED_BUSINESS);
+  fd.append("website", FIXED_WEBSITE);
+  fd.append("whatsapp", FIXED_WHATSAPP);
 
   setStatus("🚀 Uploading...");
 
-  const res=await fetch(API+"/reels/upload",{
-    method:"POST",
-    headers:{Authorization:"Bearer "+token},
-    body:fd
+  const res = await fetch(API + "/reels/upload-reel", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + token
+    },
+    body: fd
   });
 
-  const data=await res.json();
+  const data = await res.json();
 
-  if(!res.ok) return alert("❌ "+data.error);
+  if(!res.ok){
+    setStatus("❌ Upload failed");
+    return alert(data.error);
+  }
 
   setStatus("✅ Upload Success 🚀");
   alert("Uploaded successfully!");
 }
+
 </script>
 
 </body>
