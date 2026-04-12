@@ -93,23 +93,19 @@ let isPlaying = false;
    🎵 LOAD MUSIC FROM BACKEND
 ========================= */
 async function loadMusic(){
-  try{
-    const res = await fetch(API + "/music");
-    const data = await res.json();
+  const res = await fetch(API + "/music-list");
+  const data = await res.json();
 
-    musicSelect.innerHTML = `<option value="">-- Voice Only --</option>`;
+  musicSelect.innerHTML = `<option value="">-- Voice Only --</option>`;
 
-    data.forEach(m=>{
-      let opt = document.createElement("option");
-      opt.value = m.url;
-      opt.innerText = m.name;
-      musicSelect.appendChild(opt);
-    });
-
-  }catch(err){
-    musicSelect.innerHTML = `<option>Music load failed</option>`;
-  }
+  data.forEach(m => {
+    let opt = document.createElement("option");
+    opt.value = m.url;
+    opt.innerText = m.name;
+    musicSelect.appendChild(opt);
+  });
 }
+
 loadMusic();
 
 /* MUSIC CHANGE */
