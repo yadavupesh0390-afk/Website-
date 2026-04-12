@@ -72,26 +72,19 @@ video{
 
 const API = "https://business-reels-backend.onrender.com";
 
-/* ELEMENTS */
 const preview = document.getElementById("preview");
 const statusText = document.getElementById("status");
 const musicSelect = document.getElementById("musicSelect");
-const previewBtn = document.getElementById("previewMusicBtn");
-const recordBtn = document.getElementById("recordBtn");
-const stopBtn = document.getElementById("stopBtn");
 
-/* GLOBALS */
-let lat = "", lng = "";
+let lat="", lng="";
 let stream;
 let mediaRecorder;
-let chunks = [];
-let recordedBlob = null;
+let chunks=[];
+let recordedBlob=null;
 let musicAudio = new Audio();
-let isPlaying = false;
+let isPlaying=false;
 
-/* =========================
-   🎵 LOAD MUSIC FROM BACKEND
-========================= */
+/* ================= MUSIC LOAD ================= */
 async function loadMusic(){
   try{
     const res = await fetch(API + "/music");
@@ -99,52 +92,57 @@ async function loadMusic(){
 
     musicSelect.innerHTML = `<option value="">-- Voice Only --</option>`;
 
-    data.forEach(m => {
-      let opt = document.createElement("option");
-      opt.value = m.url;
-      opt.innerText = m.name;
+    if(!Array.isArray(data)) return;
+
+    data.forEach(m=>{
+      const opt=document.createElement("option");
+      opt.value=m.url;
+      opt.innerText=m.name;
       musicSelect.appendChild(opt);
     });
 
   }catch(err){
-    musicSelect.innerHTML = `<option>Music load failed</option>`;
+    musicSelect.innerHTML=`<option>Music load failed</option>`;
   }
 }
-
 loadMusic();
 
-/* =========================
-   🎵 MUSIC PREVIEW FIX
-========================= */
-previewBtn.onclick = async () => {
-  if(!musicSelect.value) return alert("Select music first");
+/* ================= MUSIC PLAY FIX ================= */
+document.getElementById("previewMusicBtn").onclick = async () => {
 
+  if(!musicSelect.value){
+    alert("Select music first");
+    return;
+  }
+
+  musicAudio.pause();
   musicAudio.src = musicSelect.value;
   musicAudio.loop = true;
+  musicAudio.volume = 1;
 
-  if(!isPlaying){
-    await musicAudio.play();
-    previewBtn.innerText = "⏸ Stop";
-    isPlaying = true;
-  }else{
-    musicAudio.pause();
-    previewBtn.innerText = "▶️ Preview Music";
-    isPlaying = false;
+  try{
+    if(!isPlaying){
+      await musicAudio.play();
+      isPlaying = true;
+      event.target.innerText = "⏸ Stop Music";
+    }else{
+      musicAudio.pause();
+      isPlaying = false;
+      event.target.innerText = "▶️ Preview Music";
+    }
+  }catch(e){
+    alert("Tap again (browser blocked autoplay)");
   }
 };
 
-/* =========================
-   📍 LOCATION
-========================= */
+/* ================= LOCATION ================= */
 navigator.geolocation.getCurrentPosition(pos=>{
   lat = pos.coords.latitude;
   lng = pos.coords.longitude;
-  statusText.innerText = "📍 Location detected";
+  statusText.innerText="📍 Location detected";
 });
 
-/* =========================
-   📷 CAMERA
-========================= */
+/* ================= CAMERA ================= */
 async function startCamera(){
   stream = await navigator.mediaDevices.getUserMedia({
     video:true,
@@ -154,90 +152,85 @@ async function startCamera(){
   preview.srcObject = stream;
 }
 
-/* =========================
-   🎥 RECORD VIDEO
-========================= */
-recordBtn.onclick = () => {
+/* ================= RECORD ================= */
+recordBtn.onclick=()=>{
   if(!stream) return alert("Start camera first");
 
-  chunks = [];
+  chunks=[];
   mediaRecorder = new MediaRecorder(stream);
 
-  mediaRecorder.ondataavailable = e => {
-    if(e.data.size > 0) chunks.push(e.data);
+  mediaRecorder.ondataavailable=e=>{
+    if(e.data.size>0) chunks.push(e.data);
   };
 
-  mediaRecorder.onstop = () => {
-    recordedBlob = new Blob(chunks, {type:"video/webm"});
-    preview.srcObject = null;
-    preview.src = URL.createObjectURL(recordedBlob);
-    preview.controls = true;
+  mediaRecorder.onstop=()=>{
+    recordedBlob = new Blob(chunks,{type:"video/webm"});
+    preview.srcObject=null;
+    preview.src=URL.createObjectURL(recordedBlob);
+    preview.controls=true;
   };
 
   mediaRecorder.start();
 
-  recordBtn.disabled = true;
-  stopBtn.disabled = false;
+  recordBtn.disabled=true;
+  stopBtn.disabled=false;
 };
 
-stopBtn.onclick = () => {
+stopBtn.onclick=()=>{
   mediaRecorder.stop();
-  recordBtn.disabled = false;
-  stopBtn.disabled = true;
+  recordBtn.disabled=false;
+  stopBtn.disabled=true;
 };
 
-/* =========================
-   🖼 SLIDESHOW (FIXED)
-========================= */
+/* ================= SLIDESHOW ================= */
 async function previewImageVideo(){
 
-  const files = document.getElementById("imageInput").files;
-
+  const files=document.getElementById("imageInput").files;
   if(!files.length) return alert("Select images");
 
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
+  const canvas=document.createElement("canvas");
+  const ctx=canvas.getContext("2d");
 
-  canvas.width = 720;
-  canvas.height = 1280;
+  canvas.width=720;
+  canvas.height=1280;
 
-  let images = [];
+  let images=[];
 
   for(let file of files){
-    let img = new Image();
-    img.src = URL.createObjectURL(file);
-    await new Promise(r => img.onload = r);
+    let img=new Image();
+    img.src=URL.createObjectURL(file);
+    await new Promise(r=>img.onload=r);
     images.push(img);
   }
 
   const stream = canvas.captureStream(30);
   const recorder = new MediaRecorder(stream);
 
-  let data = [];
+  let data=[];
 
-  recorder.ondataavailable = e => {
-    if(e.data.size > 0) data.push(e.data);
+  recorder.ondataavailable=e=>{
+    if(e.data.size>0) data.push(e.data);
   };
 
   recorder.start();
 
-  let i = 0;
+  let i=0;
 
   function draw(){
-    let img = images[i];
+    let img=images[i];
 
-    let ratio = Math.max(canvas.width/img.width, canvas.height/img.height);
-    let w = img.width * ratio;
-    let h = img.height * ratio;
+    let ratio=Math.max(canvas.width/img.width, canvas.height/img.height);
+    let w=img.width*ratio;
+    let h=img.height*ratio;
 
-    let x = (canvas.width - w)/2;
-    let y = (canvas.height - h)/2;
+    let x=(canvas.width-w)/2;
+    let y=(canvas.height-h)/2;
 
     ctx.drawImage(img,x,y,w,h);
 
     setTimeout(()=>{
       i++;
-      if(i < images.length){
+      if(i<images.length){
         draw();
       }else{
         recorder.stop();
@@ -247,52 +240,46 @@ async function previewImageVideo(){
 
   draw();
 
-  recorder.onstop = () => {
-    recordedBlob = new Blob(data, {type:"video/webm"});
-
-    preview.srcObject = null;
-    preview.src = URL.createObjectURL(recordedBlob);
-    preview.controls = true;
-
-    statusText.innerText = "✅ Slideshow Ready";
+  recorder.onstop=()=>{
+    recordedBlob=new Blob(data,{type:"video/webm"});
+    preview.src=URL.createObjectURL(recordedBlob);
+    preview.controls=true;
+    statusText.innerText="✅ Slideshow Ready";
   };
 }
 
-/* =========================
-   🚀 UPLOAD
-========================= */
+/* ================= UPLOAD ================= */
 async function uploadReel(){
 
-  const token = localStorage.getItem("token");
+  const token=localStorage.getItem("token");
   if(!token) return alert("Login first");
 
   let file = recordedBlob || document.getElementById("video").files[0];
 
   if(!file) return alert("No media selected");
 
-  const fd = new FormData();
+  const fd=new FormData();
 
-  fd.append("video", file);
-  fd.append("lat", lat);
-  fd.append("lng", lng);
+  fd.append("video",file);
+  fd.append("lat",lat);
+  fd.append("lng",lng);
+  fd.append("musicUrl",musicSelect.value || "");
 
-  fd.append("musicUrl", musicSelect.value || "");
+  fd.append("businessName","Webnestic Tech Up");
+  fd.append("website","https://webnestic-tech-up.vercel.app/");
+  fd.append("whatsapp","919473549700");
 
-  fd.append("businessName", "Webnestic Tech Up");
-  fd.append("website", "https://webnestic-tech-up.vercel.app/");
-  fd.append("whatsapp", "919473549700");
-
-  const res = await fetch(API + "/reels/upload", {
+  const res=await fetch(API+"/reels/upload",{
     method:"POST",
     headers:{
-      Authorization:"Bearer " + token
+      Authorization:"Bearer "+token
     },
-    body: fd
+    body:fd
   });
 
-  const data = await res.json();
+  const data=await res.json();
 
-  if(!res.ok) return alert("❌ " + data.error);
+  if(!res.ok) return alert("❌ "+data.error);
 
   alert("✅ Upload Success 🚀");
 }
