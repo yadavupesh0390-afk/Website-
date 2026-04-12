@@ -110,59 +110,53 @@ loadMusic();
 /* =========================
    🎵 MUSIC FIX (STABLE VERSION)
 ========================= */
+let audioCtx;
+let musicAudio;
+let audioSource;
+let audioDest;
+
 previewBtn.onclick = async () => {
 
-  if (!musicSelect.value) {
-    alert("Select music first");
-    return;
-  }
+  if (!musicSelect.value) return alert("Select music first");
 
   try {
 
-    // 👉 STOP CASE
-    if (musicAudio && !musicAudio.paused) {
-      musicAudio.pause();
-      musicAudio.currentTime = 0;
-
-      previewBtn.innerText = "▶️ Preview Music";
-      isPlaying = false;
-
-      return;
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
 
-    // 👉 PLAY CASE
-    if (musicAudio) {
-      musicAudio.pause();
-      musicAudio = null;
-    }
+    await audioCtx.resume();
 
     let url = musicSelect.value.startsWith("http")
       ? musicSelect.value
       : API + musicSelect.value;
 
+    // STOP OLD
+    if (musicAudio) {
+      musicAudio.pause();
+      musicAudio = null;
+    }
+
     musicAudio = new Audio(url);
     musicAudio.loop = true;
     musicAudio.volume = 1;
 
+    // 🔥 IMPORTANT FIX
+    audioSource = audioCtx.createMediaElementSource(musicAudio);
+    audioDest = audioCtx.createMediaStreamDestination();
+
+    audioSource.connect(audioDest);
+    audioSource.connect(audioCtx.destination);
+
     await musicAudio.play();
 
     previewBtn.innerText = "⏸ Stop Music";
-    isPlaying = true;
 
   } catch (err) {
-    console.log("Audio Error:", err);
-    alert("❌ Music load/play failed");
+    console.log(err);
+    alert("❌ Music blocked or not loaded");
   }
 };
-/* =========================
-   📍 LOCATION
-========================= */
-navigator.geolocation.getCurrentPosition(pos=>{
-  lat = pos.coords.latitude;
-  lng = pos.coords.longitude;
-  statusText.innerText = "📍 Location detected";
-});
-
 /* =========================
    📷 CAMERA
 ========================= */
