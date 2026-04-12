@@ -110,32 +110,32 @@ loadMusic();
 /* =========================
    🎵 MUSIC FIX (STABLE VERSION)
 ========================= */
-let audioCtx;
-let musicAudio;
-let audioDest;
-
-let audioInitialized = false;
-
 previewBtn.onclick = async () => {
 
-  if (!musicSelect.value) return alert("Select music first");
+  if (!musicSelect.value) {
+    alert("Select music first");
+    return;
+  }
 
   try {
 
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
+    // STOP
+    if (musicAudio && !musicAudio.paused) {
+      musicAudio.pause();
+      musicAudio.currentTime = 0;
+      musicAudio = null;
 
-    await audioCtx.resume();
+      previewBtn.innerText = "▶️ Preview Music";
+      return;
+    }
 
     let url = musicSelect.value.startsWith("http")
       ? musicSelect.value
       : API + musicSelect.value;
 
-    // STOP OLD
+    // clean old
     if (musicAudio) {
       musicAudio.pause();
-      musicAudio.currentTime = 0;
       musicAudio = null;
     }
 
@@ -145,23 +145,11 @@ previewBtn.onclick = async () => {
 
     await musicAudio.play();
 
-    // 🔥 IMPORTANT FIX (CREATE ONLY ONCE)
-    if (!audioInitialized) {
-
-      const source = audioCtx.createMediaElementSource(musicAudio);
-      audioDest = audioCtx.createMediaStreamDestination();
-
-      source.connect(audioDest);
-      source.connect(audioCtx.destination);
-
-      audioInitialized = true;
-    }
-
     previewBtn.innerText = "⏸ Stop Music";
 
   } catch (err) {
-    console.log("Audio Error:", err);
-    alert("❌ Music load blocked");
+    console.log(err);
+    alert("❌ Music blocked by browser");
   }
 };
 /* =========================
