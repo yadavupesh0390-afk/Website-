@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reel Creator</title>
+<title>Reel Creator Pro</title>
 
 <style>
 body{
@@ -32,7 +32,7 @@ video{
 
 <body>
 
-<h2>🎬 Reel Creator (Multi Image + Music)</h2>
+<h2>🎬 Reel Creator PRO</h2>
 
 <video id="preview" autoplay muted playsinline></video>
 
@@ -51,7 +51,7 @@ video{
 
 <hr>
 
-<h3>🖼 Multiple Images to Video</h3>
+<h3>🖼 Multi Image Slideshow</h3>
 <input type="file" id="imageInput" accept="image/*" multiple>
 <button onclick="previewImageVideo()">👀 Preview Slideshow</button>
 
@@ -75,12 +75,7 @@ const MUSIC_LIST = [
   {name:"Song 2", url:"music/song2.mp3"},
   {name:"Song 3", url:"music/song3.mp3"},
   {name:"Song 4", url:"music/song4.mp3"},
-  {name:"Song 5", url:"music/song5.mp3"},
-  {name:"Song 6", url:"music/song6.mp3"},
-  {name:"Song 7", url:"music/song7.mp3"},
-  {name:"Song 8", url:"music/song8.mp3"},
-  {name:"Song 9", url:"music/song9.mp3"},
-  {name:"Song 10", url:"music/song10.mp3"}
+  {name:"Song 5", url:"music/song5.mp3"}
 ];
 
 let lat="", lng="";
@@ -135,25 +130,15 @@ navigator.geolocation.getCurrentPosition(pos=>{
 async function startCamera(){
   stream = await navigator.mediaDevices.getUserMedia({video:true,audio:true});
   preview.srcObject = stream;
+}
 
-  const ctx = new AudioContext();
-  const dest = ctx.createMediaStreamDestination();
+/* RECORD */
+recordBtn.onclick=()=>{
+  if(!stream) return alert("Start camera first");
 
-  const mic = ctx.createMediaStreamSource(stream);
-  mic.connect(dest);
+  chunks=[];
 
-  if(musicAudio.src){
-    const musicSource = ctx.createMediaElementSource(musicAudio);
-    musicSource.connect(dest);
-    musicSource.connect(ctx.destination);
-  }
-
-  const finalStream = new MediaStream([
-    ...stream.getVideoTracks(),
-    ...dest.stream.getAudioTracks()
-  ]);
-
-  mediaRecorder = new MediaRecorder(finalStream);
+  mediaRecorder = new MediaRecorder(stream);
 
   mediaRecorder.ondataavailable=e=>{
     if(e.data.size>0) chunks.push(e.data);
@@ -165,19 +150,8 @@ async function startCamera(){
     preview.src=URL.createObjectURL(recordedBlob);
     preview.controls=true;
   };
-}
 
-/* RECORD */
-recordBtn.onclick=()=>{
-  if(!mediaRecorder) return alert("Start camera first");
-
-  chunks=[];
   mediaRecorder.start();
-
-  if(musicAudio.src){
-    musicAudio.currentTime=0;
-    musicAudio.play();
-  }
 
   recordBtn.disabled=true;
   stopBtn.disabled=false;
@@ -186,17 +160,18 @@ recordBtn.onclick=()=>{
 /* STOP */
 stopBtn.onclick=()=>{
   mediaRecorder.stop();
-  musicAudio.pause();
-
   recordBtn.disabled=false;
   stopBtn.disabled=true;
 };
 
-/* MULTIPLE IMAGE → VIDEO */
+/* MULTI IMAGE SLIDESHOW (IMPROVED) */
 async function imageToVideo(files){
 
   const canvas=document.createElement("canvas");
   const ctx=canvas.getContext("2d");
+
+  canvas.width = 720;
+  canvas.height = 1280;
 
   let images=[];
 
@@ -207,9 +182,6 @@ async function imageToVideo(files){
     images.push(img);
   }
 
-  canvas.width=images[0].width;
-  canvas.height=images[0].height;
-
   const stream=canvas.captureStream(30);
 
   const audioCtx=new AudioContext();
@@ -218,11 +190,9 @@ async function imageToVideo(files){
   let tempAudio=new Audio(musicAudio.src);
 
   if(tempAudio.src){
-    const musicSource=audioCtx.createMediaElementSource(tempAudio);
-    musicSource.connect(dest);
-    musicSource.connect(audioCtx.destination);
-
-    tempAudio.currentTime=0;
+    const source=audioCtx.createMediaElementSource(tempAudio);
+    source.connect(dest);
+    source.connect(audioCtx.destination);
     tempAudio.play();
   }
 
@@ -232,10 +202,10 @@ async function imageToVideo(files){
   ]);
 
   const recorder=new MediaRecorder(finalStream);
-  let chunks=[];
+  let data=[];
 
   recorder.ondataavailable=e=>{
-    if(e.data.size>0) chunks.push(e.data);
+    if(e.data.size>0) data.push(e.data);
   };
 
   recorder.start();
@@ -245,7 +215,18 @@ async function imageToVideo(files){
   let lastTime=Date.now();
 
   function draw(){
-    ctx.drawImage(images[index],0,0,canvas.width,canvas.height);
+
+    let img = images[index];
+
+    // cover fit
+    let ratio = Math.max(canvas.width/img.width, canvas.height/img.height);
+    let newW = img.width * ratio;
+    let newH = img.height * ratio;
+
+    let x = (canvas.width - newW)/2;
+    let y = (canvas.height - newH)/2;
+
+    ctx.drawImage(img,x,y,newW,newH);
 
     if(Date.now()-lastTime > duration){
       index++;
@@ -264,7 +245,7 @@ async function imageToVideo(files){
 
   return new Promise(res=>{
     recorder.onstop=()=>{
-      res(new Blob(chunks,{type:"video/webm"}));
+      res(new Blob(data,{type:"video/webm"}));
     };
   });
 }
