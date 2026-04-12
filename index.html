@@ -12,7 +12,6 @@ body{
   font-family:Arial;
   padding:20px;
 }
-
 button,input,select{
   width:100%;
   padding:12px;
@@ -20,15 +19,12 @@ button,input,select{
   border-radius:10px;
   border:none;
 }
-
 button{background:#ff004f;color:white;}
-
 video{
   width:100%;
   border-radius:10px;
   margin-top:10px;
 }
-
 #recordBtn{background:#00c853;}
 #stopBtn{background:#d50000;}
 </style>
@@ -36,7 +32,7 @@ video{
 
 <body>
 
-<h2>🎬 Reel Creator (With Music + Image)</h2>
+<h2>🎬 Reel Creator (Final)</h2>
 
 <video id="preview" autoplay muted playsinline></video>
 
@@ -48,7 +44,7 @@ video{
 
 <h3>🎵 Select Music</h3>
 <select id="musicSelect">
-  <option value="">-- No Music (Voice Only) --</option>
+  <option value="">-- Voice Only --</option>
 </select>
 
 <button id="previewMusicBtn">▶️ Preview Music</button>
@@ -57,6 +53,7 @@ video{
 
 <h3>🖼 Image to Video</h3>
 <input type="file" id="imageInput" accept="image/*">
+<button onclick="previewImageVideo()">👀 Preview Image Video</button>
 
 <hr>
 
@@ -86,40 +83,39 @@ const MUSIC_LIST = [
   {name:"Song 10", url:"music/song10.mp3"}
 ];
 
-let lat="", lng="", city="";
+let lat="", lng="";
 let stream, mediaRecorder;
 let chunks=[];
 let recordedBlob=null;
 let musicAudio = new Audio();
 
-let audioContext, destination;
-
-const musicSelect = document.getElementById("musicSelect");
+const preview = document.getElementById("preview");
 const statusText = document.getElementById("status");
+const musicSelect = document.getElementById("musicSelect");
 const previewBtn = document.getElementById("previewMusicBtn");
 
-let isPlaying = false;
+let isPlaying=false;
 
-/* ================= MUSIC ================= */
-MUSIC_LIST.forEach((m)=>{
-  let opt = document.createElement("option");
-  opt.value = m.url;
-  opt.innerText = m.name;
+/* MUSIC LOAD */
+MUSIC_LIST.forEach(m=>{
+  let opt=document.createElement("option");
+  opt.value=m.url;
+  opt.innerText=m.name;
   musicSelect.appendChild(opt);
 });
 
-musicSelect.onchange = ()=>{
-  musicAudio.src = musicSelect.value || "";
+musicSelect.onchange=()=>{
+  musicAudio.src=musicSelect.value || "";
 };
 
-/* ================= MUSIC PREVIEW ================= */
-previewBtn.onclick = ()=>{
+/* MUSIC PREVIEW */
+previewBtn.onclick=()=>{
   if(!musicAudio.src) return alert("Select music first");
 
   if(!isPlaying){
-    musicAudio.currentTime = 0;
+    musicAudio.currentTime=0;
     musicAudio.play();
-    previewBtn.innerText="⏸ Stop Preview";
+    previewBtn.innerText="⏸ Stop";
     isPlaying=true;
   }else{
     musicAudio.pause();
@@ -128,33 +124,33 @@ previewBtn.onclick = ()=>{
   }
 };
 
-/* ================= LOCATION ================= */
+/* LOCATION */
 navigator.geolocation.getCurrentPosition(pos=>{
   lat=pos.coords.latitude;
   lng=pos.coords.longitude;
   statusText.innerText="📍 Location detected";
 });
 
-/* ================= CAMERA ================= */
+/* CAMERA */
 async function startCamera(){
   stream = await navigator.mediaDevices.getUserMedia({video:true,audio:true});
   preview.srcObject = stream;
 
-  audioContext = new AudioContext();
-  destination = audioContext.createMediaStreamDestination();
+  const ctx = new AudioContext();
+  const dest = ctx.createMediaStreamDestination();
 
-  const mic = audioContext.createMediaStreamSource(stream);
-  mic.connect(destination);
+  const mic = ctx.createMediaStreamSource(stream);
+  mic.connect(dest);
 
   if(musicAudio.src){
-    const musicSource = audioContext.createMediaElementSource(musicAudio);
-    musicSource.connect(destination);
-    musicSource.connect(audioContext.destination);
+    const musicSource = ctx.createMediaElementSource(musicAudio);
+    musicSource.connect(dest);
+    musicSource.connect(ctx.destination);
   }
 
   const finalStream = new MediaStream([
     ...stream.getVideoTracks(),
-    ...destination.stream.getAudioTracks()
+    ...dest.stream.getAudioTracks()
   ]);
 
   mediaRecorder = new MediaRecorder(finalStream);
@@ -171,13 +167,11 @@ async function startCamera(){
   };
 }
 
-/* ================= RECORD ================= */
-recordBtn.onclick=async ()=>{
+/* RECORD */
+recordBtn.onclick=()=>{
   if(!mediaRecorder) return alert("Start camera first");
 
   chunks=[];
-  await audioContext.resume();
-
   mediaRecorder.start();
 
   if(musicAudio.src){
@@ -189,7 +183,7 @@ recordBtn.onclick=async ()=>{
   stopBtn.disabled=false;
 };
 
-/* ================= STOP ================= */
+/* STOP */
 stopBtn.onclick=()=>{
   mediaRecorder.stop();
   musicAudio.pause();
@@ -198,55 +192,56 @@ stopBtn.onclick=()=>{
   stopBtn.disabled=true;
 };
 
-/* ================= IMAGE TO VIDEO ================= */
+/* IMAGE TO VIDEO (FIXED) */
 async function imageToVideo(file){
 
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
+  const canvas=document.createElement("canvas");
+  const ctx=canvas.getContext("2d");
 
-  const img = new Image();
-  img.src = URL.createObjectURL(file);
-
+  const img=new Image();
+  img.src=URL.createObjectURL(file);
   await new Promise(r=>img.onload=r);
 
-  canvas.width = img.width;
-  canvas.height = img.height;
+  canvas.width=img.width;
+  canvas.height=img.height;
 
-  const stream = canvas.captureStream(30);
+  const stream=canvas.captureStream(30);
 
-  const audioCtx = new AudioContext();
-  const dest = audioCtx.createMediaStreamDestination();
+  const audioCtx=new AudioContext();
+  const dest=audioCtx.createMediaStreamDestination();
 
-  if(musicAudio.src){
-    const musicSource = audioCtx.createMediaElementSource(musicAudio);
+  let tempAudio=new Audio(musicAudio.src);
+
+  if(tempAudio.src){
+    const musicSource=audioCtx.createMediaElementSource(tempAudio);
     musicSource.connect(dest);
     musicSource.connect(audioCtx.destination);
-    musicAudio.play();
+
+    tempAudio.currentTime=0;
+    tempAudio.play();
   }
 
-  const finalStream = new MediaStream([
+  const finalStream=new MediaStream([
     ...stream.getVideoTracks(),
     ...dest.stream.getAudioTracks()
   ]);
 
-  const recorder = new MediaRecorder(finalStream);
+  const recorder=new MediaRecorder(finalStream);
   let data=[];
 
   recorder.ondataavailable=e=>data.push(e.data);
 
   recorder.start();
 
-  let duration = 5; // 5 sec video
-
-  let start = Date.now();
+  let start=Date.now();
 
   function draw(){
     ctx.drawImage(img,0,0,canvas.width,canvas.height);
-    if(Date.now()-start < duration*1000){
+    if(Date.now()-start < 5000){
       requestAnimationFrame(draw);
     }else{
       recorder.stop();
-      musicAudio.pause();
+      tempAudio.pause();
     }
   }
 
@@ -259,27 +254,41 @@ async function imageToVideo(file){
   });
 }
 
-/* ================= UPLOAD ================= */
+/* IMAGE PREVIEW */
+async function previewImageVideo(){
+  const file=document.getElementById("imageInput").files[0];
+  if(!file) return alert("Select image");
+
+  statusText.innerText="⏳ Generating preview...";
+
+  const blob=await imageToVideo(file);
+
+  preview.srcObject=null;
+  preview.src=URL.createObjectURL(blob);
+  preview.controls=true;
+
+  recordedBlob=blob;
+
+  statusText.innerText="✅ Preview Ready";
+}
+
+/* UPLOAD */
 async function uploadReel(){
 
-  const token = localStorage.getItem("token");
+  const token=localStorage.getItem("token");
   if(!token) return alert("Login first");
 
   let file;
 
   if(recordedBlob){
-    file = new File([recordedBlob],"reel.webm");
-  }else if(imageInput.files[0]){
-    statusText.innerText="⏳ Converting image to video...";
-    const blob = await imageToVideo(imageInput.files[0]);
-    file = new File([blob],"image-video.webm");
+    file=new File([recordedBlob],"reel.webm");
   }else{
-    file = video.files[0];
+    file=document.getElementById("video").files[0];
   }
 
-  if(!file) return alert("No media selected");
+  if(!file) return alert("No media");
 
-  const fd = new FormData();
+  const fd=new FormData();
   fd.append("video",file);
   fd.append("businessName",FIXED_BUSINESS);
   fd.append("website",FIXED_WEBSITE);
@@ -287,13 +296,13 @@ async function uploadReel(){
   fd.append("lat",lat);
   fd.append("lng",lng);
 
-  const res = await fetch(API+"/reels/upload",{
+  const res=await fetch(API+"/reels/upload",{
     method:"POST",
     headers:{Authorization:"Bearer "+token},
     body:fd
   });
 
-  const data = await res.json();
+  const data=await res.json();
 
   if(!res.ok) return alert("❌ "+data.error);
 
