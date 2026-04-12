@@ -63,6 +63,7 @@ video{
 
 <button onclick="uploadReel()">🚀 Upload</button>
 <button onclick="generateAIReel()">🤖 Auto AI Reel</button>
+
 <script>
 const API = "https://business-reels-backend.onrender.com";
 
@@ -80,16 +81,22 @@ const MUSIC_LIST = [
 
 let lat="", lng="";
 let stream, mediaRecorder;
-let chunks=[];
 let recordedBlob=null;
 let musicAudio = new Audio();
+let isPlaying=false;
 
 const preview = document.getElementById("preview");
 const statusText = document.getElementById("status");
 const musicSelect = document.getElementById("musicSelect");
 const previewBtn = document.getElementById("previewMusicBtn");
 
-let isPlaying=false;
+const recordBtn = document.getElementById("recordBtn");
+const stopBtn = document.getElementById("stopBtn");
+
+/* STATUS */
+function setStatus(msg){
+  statusText.innerText = msg;
+}
 
 /* MUSIC LOAD */
 MUSIC_LIST.forEach(m=>{
@@ -100,7 +107,7 @@ MUSIC_LIST.forEach(m=>{
 });
 
 musicSelect.onchange=()=>{
-  musicAudio.src=musicSelect.value || "";
+  musicAudio.src = musicSelect.value || "";
 };
 
 /* MUSIC PREVIEW */
@@ -123,7 +130,7 @@ previewBtn.onclick=()=>{
 navigator.geolocation.getCurrentPosition(pos=>{
   lat=pos.coords.latitude;
   lng=pos.coords.longitude;
-  statusText.innerText="📍 Location detected";
+  setStatus("📍 Location detected");
 });
 
 /* CAMERA */
@@ -136,8 +143,7 @@ async function startCamera(){
 recordBtn.onclick=()=>{
   if(!stream) return alert("Start camera first");
 
-  chunks=[];
-
+  let chunks=[];
   mediaRecorder = new MediaRecorder(stream);
 
   mediaRecorder.ondataavailable=e=>{
@@ -163,6 +169,8 @@ stopBtn.onclick=()=>{
   recordBtn.disabled=false;
   stopBtn.disabled=true;
 };
+
+/* AI REEL */
 async function generateAIReel(){
 
   const file = document.getElementById("imageInput").files[0];
@@ -172,30 +180,38 @@ async function generateAIReel(){
   fd.append("image", file);
   fd.append("businessName", FIXED_BUSINESS);
 
-  statusText.innerText="🤖 AI is generating reel...";
+  setStatus("🤖 AI is generating reel...");
 
-  const res = await fetch(API + "/generate-reel",{
-    method:"POST",
-    body:fd
-  });
+  try{
+    const res = await fetch(API + "/generate-reel",{
+      method:"POST",
+      body:fd
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  if(!res.ok) return alert("❌ AI failed");
+    if(!res.ok) throw new Error(data.error || "AI failed");
 
-  preview.src = data.videoUrl;
-  preview.controls = true;
+    preview.src = data.videoUrl;
+    preview.load();
+    preview.play().catch(()=>{});
+    preview.controls = true;
 
-  statusText.innerText="🔥 AI Reel Ready";
-                                  }
-/* MULTI IMAGE SLIDESHOW (IMPROVED) */
+    setStatus("🔥 AI Reel Ready");
+
+  }catch(err){
+    setStatus("❌ " + err.message);
+  }
+}
+
+/* SLIDESHOW */
 async function imageToVideo(files){
 
   const canvas=document.createElement("canvas");
   const ctx=canvas.getContext("2d");
 
-  canvas.width = 720;
-  canvas.height = 1280;
+  canvas.width=720;
+  canvas.height=1280;
 
   let images=[];
 
@@ -206,26 +222,9 @@ async function imageToVideo(files){
     images.push(img);
   }
 
-  const stream=canvas.captureStream(30);
+  const canvasStream=canvas.captureStream(30);
 
-  const audioCtx=new AudioContext();
-  const dest=audioCtx.createMediaStreamDestination();
-
-  let tempAudio=new Audio(musicAudio.src);
-
-  if(tempAudio.src){
-    const source=audioCtx.createMediaElementSource(tempAudio);
-    source.connect(dest);
-    source.connect(audioCtx.destination);
-    tempAudio.play();
-  }
-
-  const finalStream=new MediaStream([
-    ...stream.getVideoTracks(),
-    ...dest.stream.getAudioTracks()
-  ]);
-
-  const recorder=new MediaRecorder(finalStream);
+  let recorder=new MediaRecorder(canvasStream);
   let data=[];
 
   recorder.ondataavailable=e=>{
@@ -236,33 +235,28 @@ async function imageToVideo(files){
 
   let index=0;
   let duration=2000;
-  let lastTime=Date.now();
 
   function draw(){
 
-    let img = images[index];
+    let img=images[index];
 
-    // cover fit
-    let ratio = Math.max(canvas.width/img.width, canvas.height/img.height);
-    let newW = img.width * ratio;
-    let newH = img.height * ratio;
+    let ratio=Math.max(canvas.width/img.width, canvas.height/img.height);
+    let w=img.width*ratio;
+    let h=img.height*ratio;
 
-    let x = (canvas.width - newW)/2;
-    let y = (canvas.height - newH)/2;
+    let x=(canvas.width-w)/2;
+    let y=(canvas.height-h)/2;
 
-    ctx.drawImage(img,x,y,newW,newH);
+    ctx.drawImage(img,x,y,w,h);
 
-    if(Date.now()-lastTime > duration){
+    setTimeout(()=>{
       index++;
-      lastTime=Date.now();
-    }
-
-    if(index < images.length){
-      requestAnimationFrame(draw);
-    }else{
-      recorder.stop();
-      tempAudio.pause();
-    }
+      if(index<images.length){
+        draw();
+      }else{
+        recorder.stop();
+      }
+    },duration);
   }
 
   draw();
@@ -281,7 +275,7 @@ async function previewImageVideo(){
 
   if(!files.length) return alert("Select images");
 
-  statusText.innerText="⏳ Creating slideshow...";
+  setStatus("⏳ Creating slideshow...");
 
   const blob=await imageToVideo(files);
 
@@ -291,7 +285,7 @@ async function previewImageVideo(){
 
   recordedBlob=blob;
 
-  statusText.innerText="✅ Preview Ready";
+  setStatus("✅ Preview Ready");
 }
 
 /* UPLOAD */
@@ -300,13 +294,7 @@ async function uploadReel(){
   const token=localStorage.getItem("token");
   if(!token) return alert("Login first");
 
-  let file;
-
-  if(recordedBlob){
-    file=new File([recordedBlob],"reel.webm");
-  }else{
-    file=document.getElementById("video").files[0];
-  }
+  let file = recordedBlob || document.getElementById("video").files[0];
 
   if(!file) return alert("No media");
 
@@ -318,6 +306,8 @@ async function uploadReel(){
   fd.append("lat",lat);
   fd.append("lng",lng);
 
+  setStatus("🚀 Uploading...");
+
   const res=await fetch(API+"/reels/upload",{
     method:"POST",
     headers:{Authorization:"Bearer "+token},
@@ -328,7 +318,8 @@ async function uploadReel(){
 
   if(!res.ok) return alert("❌ "+data.error);
 
-  alert("✅ Upload Success 🚀");
+  setStatus("✅ Upload Success 🚀");
+  alert("Uploaded successfully!");
 }
 </script>
 
