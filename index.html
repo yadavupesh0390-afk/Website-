@@ -116,44 +116,47 @@ previewBtn.onclick = async () => {
 
   try {
 
+    // 🔥 FORCE AUDIO CONTEXT START
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
 
-    await audioCtx.resume(); // 🔥 MOBILE FIX
-
-    if (musicAudio && !musicAudio.paused) {
-      musicAudio.pause();
-      musicAudio.currentTime = 0;
-      musicAudio = null;
-      previewBtn.innerText = "▶️ Preview Music";
-      return;
-    }
+    await audioCtx.resume(); // VERY IMPORTANT
 
     let url = musicSelect.value.startsWith("http")
       ? musicSelect.value
       : API + musicSelect.value;
 
+    // STOP OLD AUDIO
+    if (musicAudio) {
+      musicAudio.pause();
+      musicAudio.currentTime = 0;
+      musicAudio = null;
+    }
+
+    // NEW AUDIO
     musicAudio = new Audio(url);
     musicAudio.loop = true;
     musicAudio.volume = 1;
 
-    audioSource = audioCtx.createMediaElementSource(musicAudio);
-    audioDest = audioCtx.createMediaStreamDestination();
-
-    audioSource.connect(audioDest);
-    audioSource.connect(audioCtx.destination);
-
     await musicAudio.play();
+
+    // CONNECT AUDIO (ONLY ONCE SAFE)
+    let source = audioCtx.createMediaElementSource(musicAudio);
+    let dest = audioCtx.createMediaStreamDestination();
+
+    source.connect(dest);
+    source.connect(audioCtx.destination);
+
+    audioDest = dest;
 
     previewBtn.innerText = "⏸ Stop Music";
 
   } catch (err) {
     console.log(err);
-    alert("❌ Music play error");
+    alert("❌ Music play blocked by browser");
   }
 };
-
 /* =========================
    📍 LOCATION
 ========================= */
