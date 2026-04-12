@@ -108,7 +108,7 @@ async function loadMusic(){
 loadMusic();
 
 /* =========================
-   🎵 MUSIC FIX (REAL AUDIO ENGINE)
+   🎵 MUSIC FIX (STABLE VERSION)
 ========================= */
 previewBtn.onclick = async () => {
 
@@ -116,7 +116,12 @@ previewBtn.onclick = async () => {
 
   try {
 
-    // STOP
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    await audioCtx.resume(); // 🔥 MOBILE FIX
+
     if (musicAudio && !musicAudio.paused) {
       musicAudio.pause();
       musicAudio.currentTime = 0;
@@ -133,8 +138,6 @@ previewBtn.onclick = async () => {
     musicAudio.loop = true;
     musicAudio.volume = 1;
 
-    // 🔥 WebAudio FIX (IMPORTANT FOR SLIDESHOW AUDIO)
-    audioCtx = new AudioContext();
     audioSource = audioCtx.createMediaElementSource(musicAudio);
     audioDest = audioCtx.createMediaStreamDestination();
 
@@ -173,7 +176,7 @@ async function startCamera(){
 }
 
 /* =========================
-   🎥 RECORD VIDEO
+   🎥 RECORD
 ========================= */
 recordBtn.onclick = () => {
   if(!stream) return alert("Start camera first");
@@ -205,7 +208,7 @@ stopBtn.onclick = () => {
 };
 
 /* =========================
-   🖼 SLIDESHOW (FINAL FIXED HD + AUDIO)
+   🖼 SLIDESHOW (FINAL HD FIX)
 ========================= */
 async function previewImageVideo(){
 
@@ -215,7 +218,6 @@ async function previewImageVideo(){
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
 
-  // 🔥 HD QUALITY
   canvas.width = 1080;
   canvas.height = 1920;
 
@@ -260,7 +262,6 @@ async function previewImageVideo(){
 
     let img = images[i];
 
-    // ✔ PERFECT FIT (NO BLUR FIX)
     let ratio = Math.min(canvas.width/img.width, canvas.height/img.height);
 
     let w = img.width * ratio;
@@ -288,7 +289,7 @@ async function previewImageVideo(){
     recordedBlob = new Blob(data, {type:"video/webm"});
     preview.src = URL.createObjectURL(recordedBlob);
     preview.controls = true;
-    statusText.innerText = "✅ HD Slideshow Ready with Music";
+    statusText.innerText = "✅ HD Reel Ready (Fixed)";
   };
 }
 
