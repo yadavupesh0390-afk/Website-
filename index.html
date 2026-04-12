@@ -112,35 +112,36 @@ loadMusic();
    🎵 FIXED MUSIC PLAYER
 ========================= */
 previewBtn.onclick = async () => {
-  if(!musicSelect.value) return alert("Select music first");
-
-  // stop previous
-  if(musicAudio){
-    musicAudio.pause();
-    musicAudio.currentTime = 0;
+  if (!musicSelect.value) {
+    alert("Select music first");
+    return;
   }
 
-  // NEW audio instance every time (IMPORTANT FIX)
-  musicAudio = new Audio(musicSelect.value);
-  musicAudio.loop = true;
-  musicAudio.volume = 1;
-
-  try{
-    if(!isPlaying){
-      await musicAudio.play();
-      previewBtn.innerText = "⏸ Stop Music";
-      isPlaying = true;
-    }else{
+  try {
+    if (musicAudio) {
       musicAudio.pause();
-      previewBtn.innerText = "▶️ Preview Music";
-      isPlaying = false;
+      musicAudio = null;
     }
-  }catch(err){
-    console.log(err);
-    alert("❌ Music blocked by browser or invalid file");
+
+    // IMPORTANT: full URL fix
+    let url = musicSelect.value.startsWith("http")
+      ? musicSelect.value
+      : API + musicSelect.value;
+
+    musicAudio = new Audio(url);
+    musicAudio.loop = true;
+    musicAudio.volume = 1;
+
+    await musicAudio.play();
+
+    previewBtn.innerText = "⏸ Stop Music";
+    isPlaying = true;
+
+  } catch (err) {
+    console.log("Audio Error:", err);
+    alert("❌ Music load/play failed. URL check karo ya format issue hai.");
   }
 };
-
 /* =========================
    📍 LOCATION
 ========================= */
