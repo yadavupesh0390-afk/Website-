@@ -36,7 +36,7 @@ video{
 
 <body>
 
-<h2>🎬 Reel Creator (With Music)</h2>
+<h2>🎬 Reel Creator (With Music + Image)</h2>
 
 <video id="preview" autoplay muted playsinline></video>
 
@@ -52,6 +52,11 @@ video{
 </select>
 
 <button id="previewMusicBtn">▶️ Preview Music</button>
+
+<hr>
+
+<h3>🖼 Image to Video</h3>
+<input type="file" id="imageInput" accept="image/*">
 
 <hr>
 
@@ -87,7 +92,7 @@ let chunks=[];
 let recordedBlob=null;
 let musicAudio = new Audio();
 
-let audioContext, destination, micSource, musicSource;
+let audioContext, destination;
 
 const musicSelect = document.getElementById("musicSelect");
 const statusText = document.getElementById("status");
@@ -95,7 +100,7 @@ const previewBtn = document.getElementById("previewMusicBtn");
 
 let isPlaying = false;
 
-/* ================= MUSIC LOAD ================= */
+/* ================= MUSIC ================= */
 MUSIC_LIST.forEach((m)=>{
   let opt = document.createElement("option");
   opt.value = m.url;
@@ -104,114 +109,80 @@ MUSIC_LIST.forEach((m)=>{
 });
 
 musicSelect.onchange = ()=>{
-  if(musicSelect.value){
-    musicAudio.src = musicSelect.value;
-    statusText.innerText = "🎵 Music Selected";
-  }else{
-    musicAudio.src = "";
-    statusText.innerText = "🎤 Voice only mode";
-  }
+  musicAudio.src = musicSelect.value || "";
 };
 
 /* ================= MUSIC PREVIEW ================= */
 previewBtn.onclick = ()=>{
-  if(!musicAudio.src){
-    alert("❌ Select music first");
-    return;
-  }
+  if(!musicAudio.src) return alert("Select music first");
 
   if(!isPlaying){
     musicAudio.currentTime = 0;
     musicAudio.play();
-    previewBtn.innerText = "⏸ Stop Preview";
-    isPlaying = true;
+    previewBtn.innerText="⏸ Stop Preview";
+    isPlaying=true;
   }else{
     musicAudio.pause();
-    previewBtn.innerText = "▶️ Preview Music";
-    isPlaying = false;
+    previewBtn.innerText="▶️ Preview Music";
+    isPlaying=false;
   }
 };
 
 /* ================= LOCATION ================= */
 navigator.geolocation.getCurrentPosition(pos=>{
-  lat = pos.coords.latitude;
-  lng = pos.coords.longitude;
-  statusText.innerText = "📍 Location detected";
+  lat=pos.coords.latitude;
+  lng=pos.coords.longitude;
+  statusText.innerText="📍 Location detected";
 });
 
 /* ================= CAMERA ================= */
 async function startCamera(){
-  try{
-    stream = await navigator.mediaDevices.getUserMedia({
-      video:true,
-      audio:true
-    });
+  stream = await navigator.mediaDevices.getUserMedia({video:true,audio:true});
+  preview.srcObject = stream;
 
-    preview.srcObject = stream;
+  audioContext = new AudioContext();
+  destination = audioContext.createMediaStreamDestination();
 
-    audioContext = new AudioContext();
-    destination = audioContext.createMediaStreamDestination();
+  const mic = audioContext.createMediaStreamSource(stream);
+  mic.connect(destination);
 
-    micSource = audioContext.createMediaStreamSource(stream);
-    micSource.connect(destination);
-
-    if(musicAudio.src){
-      musicSource = audioContext.createMediaElementSource(musicAudio);
-      musicSource.connect(destination);
-      musicSource.connect(audioContext.destination);
-    }
-
-    const finalStream = new MediaStream([
-      ...stream.getVideoTracks(),
-      ...destination.stream.getAudioTracks()
-    ]);
-
-    mediaRecorder = new MediaRecorder(finalStream);
-
-    mediaRecorder.ondataavailable = e=>{
-      if(e.data.size>0) chunks.push(e.data);
-    };
-
-    mediaRecorder.onstop = ()=>{
-      recordedBlob = new Blob(chunks,{type:"video/webm"});
-      preview.srcObject = null;
-      preview.src = URL.createObjectURL(recordedBlob);
-      preview.controls = true;
-    };
-
-    statusText.innerText = "📷 Camera Ready";
-
-  }catch(err){
-    alert("Camera permission denied ❌");
+  if(musicAudio.src){
+    const musicSource = audioContext.createMediaElementSource(musicAudio);
+    musicSource.connect(destination);
+    musicSource.connect(audioContext.destination);
   }
+
+  const finalStream = new MediaStream([
+    ...stream.getVideoTracks(),
+    ...destination.stream.getAudioTracks()
+  ]);
+
+  mediaRecorder = new MediaRecorder(finalStream);
+
+  mediaRecorder.ondataavailable=e=>{
+    if(e.data.size>0) chunks.push(e.data);
+  };
+
+  mediaRecorder.onstop=()=>{
+    recordedBlob=new Blob(chunks,{type:"video/webm"});
+    preview.srcObject=null;
+    preview.src=URL.createObjectURL(recordedBlob);
+    preview.controls=true;
+  };
 }
 
 /* ================= RECORD ================= */
-recordBtn.onclick = async ()=>{
-  if(!mediaRecorder){
-    alert("Start camera first ❌");
-    return;
-  }
-
-  // 🔥 STOP PREVIEW
-  musicAudio.pause();
-  previewBtn.innerText = "▶️ Preview Music";
-  isPlaying = false;
+recordBtn.onclick=async ()=>{
+  if(!mediaRecorder) return alert("Start camera first");
 
   chunks=[];
-
-  if(audioContext.state === "suspended"){
-    await audioContext.resume();
-  }
+  await audioContext.resume();
 
   mediaRecorder.start();
 
   if(musicAudio.src){
-    musicAudio.currentTime = 0;
+    musicAudio.currentTime=0;
     musicAudio.play();
-    statusText.innerText="🎥 Recording with music...";
-  }else{
-    statusText.innerText="🎥 Recording (voice only)...";
   }
 
   recordBtn.disabled=true;
@@ -219,30 +190,94 @@ recordBtn.onclick = async ()=>{
 };
 
 /* ================= STOP ================= */
-stopBtn.onclick = ()=>{
+stopBtn.onclick=()=>{
   mediaRecorder.stop();
   musicAudio.pause();
 
   recordBtn.disabled=false;
   stopBtn.disabled=true;
-  statusText.innerText="✅ Recording Done";
 };
+
+/* ================= IMAGE TO VIDEO ================= */
+async function imageToVideo(file){
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+
+  await new Promise(r=>img.onload=r);
+
+  canvas.width = img.width;
+  canvas.height = img.height;
+
+  const stream = canvas.captureStream(30);
+
+  const audioCtx = new AudioContext();
+  const dest = audioCtx.createMediaStreamDestination();
+
+  if(musicAudio.src){
+    const musicSource = audioCtx.createMediaElementSource(musicAudio);
+    musicSource.connect(dest);
+    musicSource.connect(audioCtx.destination);
+    musicAudio.play();
+  }
+
+  const finalStream = new MediaStream([
+    ...stream.getVideoTracks(),
+    ...dest.stream.getAudioTracks()
+  ]);
+
+  const recorder = new MediaRecorder(finalStream);
+  let data=[];
+
+  recorder.ondataavailable=e=>data.push(e.data);
+
+  recorder.start();
+
+  let duration = 5; // 5 sec video
+
+  let start = Date.now();
+
+  function draw(){
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    if(Date.now()-start < duration*1000){
+      requestAnimationFrame(draw);
+    }else{
+      recorder.stop();
+      musicAudio.pause();
+    }
+  }
+
+  draw();
+
+  return new Promise(res=>{
+    recorder.onstop=()=>{
+      res(new Blob(data,{type:"video/webm"}));
+    };
+  });
+}
 
 /* ================= UPLOAD ================= */
 async function uploadReel(){
 
   const token = localStorage.getItem("token");
-  if(!token) return alert("Login first ❌");
+  if(!token) return alert("Login first");
 
   let file;
 
   if(recordedBlob){
     file = new File([recordedBlob],"reel.webm");
+  }else if(imageInput.files[0]){
+    statusText.innerText="⏳ Converting image to video...";
+    const blob = await imageToVideo(imageInput.files[0]);
+    file = new File([blob],"image-video.webm");
   }else{
     file = video.files[0];
   }
 
-  if(!file) return alert("No video ❌");
+  if(!file) return alert("No media selected");
 
   const fd = new FormData();
   fd.append("video",file);
@@ -251,7 +286,6 @@ async function uploadReel(){
   fd.append("whatsapp",FIXED_WHATSAPP);
   fd.append("lat",lat);
   fd.append("lng",lng);
-  fd.append("city",city);
 
   const res = await fetch(API+"/reels/upload",{
     method:"POST",
