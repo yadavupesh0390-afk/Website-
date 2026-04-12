@@ -49,7 +49,7 @@ video{
 
 <h3>🎵 Select Music</h3>
 <select id="musicSelect">
-  <option>Loading music...</option>
+  <option value="">-- Voice Only --</option>
 </select>
 
 <button id="previewMusicBtn">▶️ Preview Music</button>
@@ -87,6 +87,7 @@ let mediaRecorder;
 let chunks = [];
 let recordedBlob = null;
 let musicAudio = null;
+let audioCtx, audioSource, audioDest;
 
 /* =========================
    🎵 LOAD MUSIC
@@ -107,7 +108,7 @@ async function loadMusic(){
 loadMusic();
 
 /* =========================
-   🎵 MUSIC TOGGLE FIXED
+   🎵 MUSIC FIX (REAL AUDIO ENGINE)
 ========================= */
 previewBtn.onclick = async () => {
 
@@ -120,12 +121,10 @@ previewBtn.onclick = async () => {
       musicAudio.pause();
       musicAudio.currentTime = 0;
       musicAudio = null;
-
       previewBtn.innerText = "▶️ Preview Music";
       return;
     }
 
-    // PLAY
     let url = musicSelect.value.startsWith("http")
       ? musicSelect.value
       : API + musicSelect.value;
@@ -133,6 +132,14 @@ previewBtn.onclick = async () => {
     musicAudio = new Audio(url);
     musicAudio.loop = true;
     musicAudio.volume = 1;
+
+    // 🔥 WebAudio FIX (IMPORTANT FOR SLIDESHOW AUDIO)
+    audioCtx = new AudioContext();
+    audioSource = audioCtx.createMediaElementSource(musicAudio);
+    audioDest = audioCtx.createMediaStreamDestination();
+
+    audioSource.connect(audioDest);
+    audioSource.connect(audioCtx.destination);
 
     await musicAudio.play();
 
@@ -166,7 +173,7 @@ async function startCamera(){
 }
 
 /* =========================
-   🎥 RECORD
+   🎥 RECORD VIDEO
 ========================= */
 recordBtn.onclick = () => {
   if(!stream) return alert("Start camera first");
@@ -198,7 +205,7 @@ stopBtn.onclick = () => {
 };
 
 /* =========================
-   🖼 SLIDESHOW (FIXED HD + AUDIO)
+   🖼 SLIDESHOW (FINAL FIXED HD + AUDIO)
 ========================= */
 async function previewImageVideo(){
 
@@ -208,7 +215,7 @@ async function previewImageVideo(){
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
 
-  // 🔥 HD QUALITY FIX
+  // 🔥 HD QUALITY
   canvas.width = 1080;
   canvas.height = 1920;
 
@@ -225,7 +232,7 @@ async function previewImageVideo(){
   }
 
   const canvasStream = canvas.captureStream(30);
-  const audioStream = musicAudio ? musicAudio.captureStream() : null;
+  const audioStream = audioDest ? audioDest.stream : null;
 
   let finalStream;
 
@@ -250,9 +257,12 @@ async function previewImageVideo(){
   let i = 0;
 
   function draw(){
+
     let img = images[i];
 
-    let ratio = Math.max(canvas.width/img.width, canvas.height/img.height);
+    // ✔ PERFECT FIT (NO BLUR FIX)
+    let ratio = Math.min(canvas.width/img.width, canvas.height/img.height);
+
     let w = img.width * ratio;
     let h = img.height * ratio;
 
@@ -278,7 +288,7 @@ async function previewImageVideo(){
     recordedBlob = new Blob(data, {type:"video/webm"});
     preview.src = URL.createObjectURL(recordedBlob);
     preview.controls = true;
-    statusText.innerText = "✅ Slideshow Ready (HD + Music)";
+    statusText.innerText = "✅ HD Slideshow Ready with Music";
   };
 }
 
