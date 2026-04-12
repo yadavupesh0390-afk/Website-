@@ -6,60 +6,58 @@
 <title>Reel Upload</title>
 
 <style>
-body {
-  font-family: Arial;
-  padding: 20px;
-  background: #111;
-  color: #fff;
+body{
+  background:#111;
+  color:#fff;
+  font-family:Arial;
+  padding:20px;
 }
 
-input, button {
-  width: 100%;
-  padding: 12px;
-  margin: 8px 0;
-  border-radius: 10px;
-  border: none;
+button,input,select{
+  width:100%;
+  padding:12px;
+  margin:8px 0;
+  border-radius:10px;
+  border:none;
 }
 
-button {
-  background: #ff004f;
-  color: white;
-  cursor: pointer;
+button{background:#ff004f;color:white;}
+
+video{
+  width:100%;
+  border-radius:10px;
+  margin-top:10px;
 }
 
-video {
-  width: 100%;
-  margin-top: 10px;
-  border-radius: 10px;
-}
-
-#recordBtn{
-  background:#00c853;
-}
-
-#stopBtn{
-  background:#d50000;
-}
+#recordBtn{background:#00c853;}
+#stopBtn{background:#d50000;}
 </style>
 </head>
 
 <body>
 
-<h2>🎬 Reel Upload (Instagram Style)</h2>
+<h2>🎬 Reel Creator (With Music)</h2>
 
-<!-- CAMERA PREVIEW -->
 <video id="preview" autoplay muted playsinline></video>
 
+<button onclick="startCamera()">📷 Start Camera</button>
 <button id="recordBtn">🎥 Start Recording</button>
-<button id="stopBtn" disabled>⏹ Stop Recording</button>
+<button id="stopBtn" disabled>⏹ Stop</button>
+
+<hr>
+
+<h3>🎵 Select Music</h3>
+<select id="musicSelect">
+  <option value="">-- No Music --</option>
+</select>
 
 <hr>
 
 <input type="file" id="video">
 
-<p id="locationStatus">📍 Detecting location...</p>
+<p id="status">📍 Detecting location...</p>
 
-<button id="uploadBtn">🚀 Upload Reel</button>
+<button onclick="uploadReel()">🚀 Upload</button>
 
 <script>
 const API = "https://business-reels-backend.onrender.com";
@@ -69,56 +67,84 @@ const FIXED_WHATSAPP = "919473549700";
 const FIXED_BUSINESS = "Webnestic Tech Up";
 const FIXED_WEBSITE = "https://webnestic-tech-up.vercel.app/";
 
-let city = "";
-let lat = "";
-let lng = "";
+// 🎵 YOUR 10 MUSIC LIST (🔥 CHANGE LINKS HERE)
+const MUSIC_LIST = [
+  {name:"Song 1", url:"music/song1.mp3"},
+  {name:"Song 2", url:"music/song2.mp3"},
+  {name:"Song 3", url:"music/song3.mp3"},
+  {name:"Song 4", url:"music/song4.mp3"},
+  {name:"Song 5", url:"music/song5.mp3"},
+  {name:"Song 6", url:"music/song6.mp3"},
+  {name:"Song 7", url:"music/song7.mp3"},
+  {name:"Song 8", url:"music/song8.mp3"},
+  {name:"Song 9", url:"music/song9.mp3"},
+  {name:"Song 10", url:"music/song10.mp3"}
+];
 
-let mediaRecorder;
-let recordedChunks = [];
-let recordedBlob = null;
+let lat="", lng="", city="";
+let stream, mediaRecorder;
+let chunks=[];
+let recordedBlob=null;
+let musicAudio = new Audio();
 
-/* ================= TOKEN ================= */
-function getToken(){
-  return localStorage.getItem("token");
-}
+/* ================= LOAD MUSIC ================= */
+const musicSelect = document.getElementById("musicSelect");
+
+MUSIC_LIST.forEach((m)=>{
+  let opt = document.createElement("option");
+  opt.value = m.url;
+  opt.innerText = m.name;
+  musicSelect.appendChild(opt);
+});
+
+musicSelect.onchange = ()=>{
+  if(musicSelect.value){
+    musicAudio.src = musicSelect.value;
+    alert("🎵 Music Selected");
+  }
+};
 
 /* ================= LOCATION ================= */
-function getLocation() {
-  if (!navigator.geolocation) return;
+navigator.geolocation.getCurrentPosition(pos=>{
+  lat = pos.coords.latitude;
+  lng = pos.coords.longitude;
+  status.innerText = "📍 Location detected";
+});
 
-  navigator.geolocation.getCurrentPosition((pos) => {
-    lat = pos.coords.latitude;
-    lng = pos.coords.longitude;
-    city = "Unknown";
-
-    document.getElementById("locationStatus").innerText = "📍 Location detected";
-
-  }, () => {
-    document.getElementById("locationStatus").innerText = "❌ Location denied";
-  });
-}
-getLocation();
-
-/* ================= CAMERA SETUP ================= */
+/* ================= CAMERA ================= */
 async function startCamera(){
   try{
-    const stream = await navigator.mediaDevices.getUserMedia({
+    stream = await navigator.mediaDevices.getUserMedia({
       video:true,
       audio:true
     });
 
     preview.srcObject = stream;
 
-    mediaRecorder = new MediaRecorder(stream);
+    // 🔥 AUDIO MIX SYSTEM
+    const ctx = new AudioContext();
+    const dest = ctx.createMediaStreamDestination();
 
-    mediaRecorder.ondataavailable = (e)=>{
-      if(e.data.size > 0){
-        recordedChunks.push(e.data);
-      }
+    const mic = ctx.createMediaStreamSource(stream);
+    mic.connect(dest);
+
+    const musicSource = ctx.createMediaElementSource(musicAudio);
+    musicSource.connect(dest);
+    musicSource.connect(ctx.destination);
+
+    const combined = new MediaStream([
+      ...stream.getVideoTracks(),
+      ...dest.stream.getAudioTracks()
+    ]);
+
+    mediaRecorder = new MediaRecorder(combined);
+
+    mediaRecorder.ondataavailable = e=>{
+      if(e.data.size>0) chunks.push(e.data);
     };
 
     mediaRecorder.onstop = ()=>{
-      recordedBlob = new Blob(recordedChunks, { type: "video/webm" });
+      recordedBlob = new Blob(chunks,{type:"video/webm"});
       preview.srcObject = null;
       preview.src = URL.createObjectURL(recordedBlob);
       preview.controls = true;
@@ -129,75 +155,73 @@ async function startCamera(){
   }
 }
 
-startCamera();
-
 /* ================= RECORD ================= */
 recordBtn.onclick = ()=>{
-  recordedChunks = [];
+  if(!mediaRecorder){
+    alert("Start camera first ❌");
+    return;
+  }
+
+  chunks=[];
   mediaRecorder.start();
 
-  recordBtn.disabled = true;
-  stopBtn.disabled = false;
+  // 🎵 play music
+  if(musicAudio.src){
+    musicAudio.currentTime = 0;
+    musicAudio.play();
+  }
+
+  recordBtn.disabled=true;
+  stopBtn.disabled=false;
+  status.innerText="🎥 Recording...";
 };
 
 stopBtn.onclick = ()=>{
   mediaRecorder.stop();
+  musicAudio.pause();
 
-  recordBtn.disabled = false;
-  stopBtn.disabled = true;
+  recordBtn.disabled=false;
+  stopBtn.disabled=true;
+  status.innerText="✅ Recording Done";
 };
 
 /* ================= UPLOAD ================= */
 async function uploadReel(){
 
-  const token = getToken();
-
-  if (!token) return alert("Login first ❌");
+  const token = localStorage.getItem("token");
+  if(!token) return alert("Login first ❌");
 
   let file;
 
-  // 🎥 PRIORITY: RECORDED VIDEO
   if(recordedBlob){
-    file = new File([recordedBlob], "reel.webm");
+    file = new File([recordedBlob],"reel.webm");
   }else{
-    file = document.getElementById("video").files[0];
+    file = video.files[0];
   }
 
-  if (!file) return alert("Record or select video ❌");
+  if(!file) return alert("No video ❌");
 
-  const formData = new FormData();
-  formData.append("video", file);
+  const fd = new FormData();
+  fd.append("video",file);
+  fd.append("businessName",FIXED_BUSINESS);
+  fd.append("website",FIXED_WEBSITE);
+  fd.append("whatsapp",FIXED_WHATSAPP);
+  fd.append("lat",lat);
+  fd.append("lng",lng);
+  fd.append("city",city);
 
-  formData.append("businessName", FIXED_BUSINESS);
-  formData.append("website", FIXED_WEBSITE);
-  formData.append("whatsapp", FIXED_WHATSAPP);
-  formData.append("city", city);
-  formData.append("lat", lat);
-  formData.append("lng", lng);
+  const res = await fetch(API+"/reels/upload",{
+    method:"POST",
+    headers:{Authorization:"Bearer "+token},
+    body:fd
+  });
 
-  try{
-    const res = await fetch(API + "/reels/upload", {
-      method: "POST",
-      headers: {
-        Authorization: "Bearer " + token
-      },
-      body: formData
-    });
+  const data = await res.json();
 
-    const data = await res.json();
+  if(!res.ok) return alert("❌ "+data.error);
 
-    if (!res.ok) return alert("❌ " + data.error);
-
-    alert("✅ Upload Success 🚀");
-
-  }catch(err){
-    alert("Upload failed ❌");
-  }
+  alert("✅ Upload Success 🚀");
 }
-
-/* ================= BUTTON ================= */
-uploadBtn.onclick = uploadReel;
-
 </script>
 
 </body>
