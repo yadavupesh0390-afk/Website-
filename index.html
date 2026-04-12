@@ -47,7 +47,7 @@ video{
 
 <hr>
 
-<h3>🎵 Select Music (Backend)</h3>
+<h3>🎵 Select Music</h3>
 <select id="musicSelect">
   <option>Loading music...</option>
 </select>
@@ -93,34 +93,37 @@ let isPlaying = false;
    🎵 LOAD MUSIC FROM BACKEND
 ========================= */
 async function loadMusic(){
-  const res = await fetch(API + "/music-list");
-  const data = await res.json();
+  try{
+    const res = await fetch(API + "/music");
+    const data = await res.json();
 
-  musicSelect.innerHTML = `<option value="">-- Voice Only --</option>`;
+    musicSelect.innerHTML = `<option value="">-- Voice Only --</option>`;
 
-  data.forEach(m => {
-    let opt = document.createElement("option");
-    opt.value = m.url;
-    opt.innerText = m.name;
-    musicSelect.appendChild(opt);
-  });
+    data.forEach(m => {
+      let opt = document.createElement("option");
+      opt.value = m.url;
+      opt.innerText = m.name;
+      musicSelect.appendChild(opt);
+    });
+
+  }catch(err){
+    musicSelect.innerHTML = `<option>Music load failed</option>`;
+  }
 }
 
 loadMusic();
 
-/* MUSIC CHANGE */
-musicSelect.onchange = () => {
-  musicAudio.pause();
-  musicAudio.src = musicSelect.value;
-};
+/* =========================
+   🎵 MUSIC PREVIEW FIX
+========================= */
+previewBtn.onclick = async () => {
+  if(!musicSelect.value) return alert("Select music first");
 
-/* MUSIC PREVIEW */
-previewBtn.onclick = () => {
-  if(!musicAudio.src) return alert("Select music first");
+  musicAudio.src = musicSelect.value;
+  musicAudio.loop = true;
 
   if(!isPlaying){
-    musicAudio.currentTime = 0;
-    musicAudio.play();
+    await musicAudio.play();
     previewBtn.innerText = "⏸ Stop";
     isPlaying = true;
   }else{
@@ -130,14 +133,18 @@ previewBtn.onclick = () => {
   }
 };
 
-/* LOCATION */
+/* =========================
+   📍 LOCATION
+========================= */
 navigator.geolocation.getCurrentPosition(pos=>{
   lat = pos.coords.latitude;
   lng = pos.coords.longitude;
   statusText.innerText = "📍 Location detected";
 });
 
-/* CAMERA */
+/* =========================
+   📷 CAMERA
+========================= */
 async function startCamera(){
   stream = await navigator.mediaDevices.getUserMedia({
     video:true,
@@ -180,7 +187,7 @@ stopBtn.onclick = () => {
 };
 
 /* =========================
-   🖼 SLIDESHOW
+   🖼 SLIDESHOW (FIXED)
 ========================= */
 async function previewImageVideo(){
 
@@ -214,10 +221,10 @@ async function previewImageVideo(){
 
   recorder.start();
 
-  let index = 0;
+  let i = 0;
 
   function draw(){
-    let img = images[index];
+    let img = images[i];
 
     let ratio = Math.max(canvas.width/img.width, canvas.height/img.height);
     let w = img.width * ratio;
@@ -229,8 +236,8 @@ async function previewImageVideo(){
     ctx.drawImage(img,x,y,w,h);
 
     setTimeout(()=>{
-      index++;
-      if(index < images.length){
+      i++;
+      if(i < images.length){
         draw();
       }else{
         recorder.stop();
@@ -252,22 +259,14 @@ async function previewImageVideo(){
 }
 
 /* =========================
-   🚀 UPLOAD REEL
+   🚀 UPLOAD
 ========================= */
 async function uploadReel(){
 
   const token = localStorage.getItem("token");
   if(!token) return alert("Login first");
 
-  let file;
-
-  if(recordedBlob){
-    file = new File([recordedBlob], "reel.webm", {
-      type:"video/webm"
-    });
-  }else{
-    file = document.getElementById("video").files[0];
-  }
+  let file = recordedBlob || document.getElementById("video").files[0];
 
   if(!file) return alert("No media selected");
 
@@ -277,8 +276,7 @@ async function uploadReel(){
   fd.append("lat", lat);
   fd.append("lng", lng);
 
-  // 🎵 MUSIC SEND TO BACKEND
-  fd.append("musicUrl", musicSelect.value);
+  fd.append("musicUrl", musicSelect.value || "");
 
   fd.append("businessName", "Webnestic Tech Up");
   fd.append("website", "https://webnestic-tech-up.vercel.app/");
