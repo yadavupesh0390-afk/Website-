@@ -32,7 +32,7 @@ video{
 
 <body>
 
-<h2>🎬 Reel Creator (Final)</h2>
+<h2>🎬 Reel Creator (Multi Image + Music)</h2>
 
 <video id="preview" autoplay muted playsinline></video>
 
@@ -51,9 +51,9 @@ video{
 
 <hr>
 
-<h3>🖼 Image to Video</h3>
-<input type="file" id="imageInput" accept="image/*">
-<button onclick="previewImageVideo()">👀 Preview Image Video</button>
+<h3>🖼 Multiple Images to Video</h3>
+<input type="file" id="imageInput" accept="image/*" multiple>
+<button onclick="previewImageVideo()">👀 Preview Slideshow</button>
 
 <hr>
 
@@ -192,18 +192,23 @@ stopBtn.onclick=()=>{
   stopBtn.disabled=true;
 };
 
-/* IMAGE TO VIDEO (FIXED) */
-async function imageToVideo(file){
+/* MULTIPLE IMAGE → VIDEO */
+async function imageToVideo(files){
 
   const canvas=document.createElement("canvas");
   const ctx=canvas.getContext("2d");
 
-  const img=new Image();
-  img.src=URL.createObjectURL(file);
-  await new Promise(r=>img.onload=r);
+  let images=[];
 
-  canvas.width=img.width;
-  canvas.height=img.height;
+  for(let file of files){
+    let img=new Image();
+    img.src=URL.createObjectURL(file);
+    await new Promise(r=>img.onload=r);
+    images.push(img);
+  }
+
+  canvas.width=images[0].width;
+  canvas.height=images[0].height;
 
   const stream=canvas.captureStream(30);
 
@@ -227,17 +232,27 @@ async function imageToVideo(file){
   ]);
 
   const recorder=new MediaRecorder(finalStream);
-  let data=[];
+  let chunks=[];
 
-  recorder.ondataavailable=e=>data.push(e.data);
+  recorder.ondataavailable=e=>{
+    if(e.data.size>0) chunks.push(e.data);
+  };
 
   recorder.start();
 
-  let start=Date.now();
+  let index=0;
+  let duration=2000;
+  let lastTime=Date.now();
 
   function draw(){
-    ctx.drawImage(img,0,0,canvas.width,canvas.height);
-    if(Date.now()-start < 5000){
+    ctx.drawImage(images[index],0,0,canvas.width,canvas.height);
+
+    if(Date.now()-lastTime > duration){
+      index++;
+      lastTime=Date.now();
+    }
+
+    if(index < images.length){
       requestAnimationFrame(draw);
     }else{
       recorder.stop();
@@ -249,19 +264,21 @@ async function imageToVideo(file){
 
   return new Promise(res=>{
     recorder.onstop=()=>{
-      res(new Blob(data,{type:"video/webm"}));
+      res(new Blob(chunks,{type:"video/webm"}));
     };
   });
 }
 
-/* IMAGE PREVIEW */
+/* PREVIEW */
 async function previewImageVideo(){
-  const file=document.getElementById("imageInput").files[0];
-  if(!file) return alert("Select image");
 
-  statusText.innerText="⏳ Generating preview...";
+  const files=document.getElementById("imageInput").files;
 
-  const blob=await imageToVideo(file);
+  if(!files.length) return alert("Select images");
+
+  statusText.innerText="⏳ Creating slideshow...";
+
+  const blob=await imageToVideo(files);
 
   preview.srcObject=null;
   preview.src=URL.createObjectURL(blob);
