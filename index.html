@@ -112,8 +112,9 @@ loadMusic();
 ========================= */
 let audioCtx;
 let musicAudio;
-let audioSource;
 let audioDest;
+
+let audioInitialized = false;
 
 previewBtn.onclick = async () => {
 
@@ -134,6 +135,7 @@ previewBtn.onclick = async () => {
     // STOP OLD
     if (musicAudio) {
       musicAudio.pause();
+      musicAudio.currentTime = 0;
       musicAudio = null;
     }
 
@@ -141,20 +143,25 @@ previewBtn.onclick = async () => {
     musicAudio.loop = true;
     musicAudio.volume = 1;
 
-    // 🔥 IMPORTANT FIX
-    audioSource = audioCtx.createMediaElementSource(musicAudio);
-    audioDest = audioCtx.createMediaStreamDestination();
-
-    audioSource.connect(audioDest);
-    audioSource.connect(audioCtx.destination);
-
     await musicAudio.play();
+
+    // 🔥 IMPORTANT FIX (CREATE ONLY ONCE)
+    if (!audioInitialized) {
+
+      const source = audioCtx.createMediaElementSource(musicAudio);
+      audioDest = audioCtx.createMediaStreamDestination();
+
+      source.connect(audioDest);
+      source.connect(audioCtx.destination);
+
+      audioInitialized = true;
+    }
 
     previewBtn.innerText = "⏸ Stop Music";
 
   } catch (err) {
-    console.log(err);
-    alert("❌ Music blocked or not loaded");
+    console.log("Audio Error:", err);
+    alert("❌ Music load blocked");
   }
 };
 /* =========================
