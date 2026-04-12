@@ -49,7 +49,7 @@ video{
 
 <h3>🎵 Select Music</h3>
 <select id="musicSelect">
-  <option>Loading music...</option>
+  <option value="">Loading music...</option>
 </select>
 
 <button id="previewMusicBtn">▶️ Preview Music</button>
@@ -90,42 +90,50 @@ let musicAudio = null;
 let isPlaying = false;
 
 /* =========================
-   🎵 LOAD MUSIC
+   🎵 LOAD MUSIC (FIXED)
 ========================= */
 async function loadMusic(){
   try{
-    const res = await fetch(API + "/music");
+    const res = await fetch(API + "/music", { cache: "no-store" });
     const data = await res.json();
+
+    console.log("Music API:", data);
 
     musicSelect.innerHTML = `<option value="">-- Voice Only --</option>`;
 
+    if(!Array.isArray(data)){
+      musicSelect.innerHTML = `<option>Music API Error</option>`;
+      return;
+    }
+
     data.forEach(m => {
+      if(!m.url) return;
+
       let opt = document.createElement("option");
       opt.value = m.url;
-      opt.innerText = m.name;
+      opt.innerText = m.name || "Untitled";
       musicSelect.appendChild(opt);
     });
 
   }catch(err){
-    musicSelect.innerHTML = `<option>Music load failed</option>`;
+    console.log(err);
+    musicSelect.innerHTML = `<option>❌ Music load failed</option>`;
   }
 }
 
 loadMusic();
 
 /* =========================
-   🎵 FIXED MUSIC PLAYER
+   🎵 MUSIC PLAYER (FIXED)
 ========================= */
 previewBtn.onclick = async () => {
   if(!musicSelect.value) return alert("Select music first");
 
-  // stop previous
   if(musicAudio){
     musicAudio.pause();
-    musicAudio.currentTime = 0;
+    musicAudio = null;
   }
 
-  // NEW audio instance every time (IMPORTANT FIX)
   musicAudio = new Audio(musicSelect.value);
   musicAudio.loop = true;
   musicAudio.volume = 1;
@@ -142,7 +150,7 @@ previewBtn.onclick = async () => {
     }
   }catch(err){
     console.log(err);
-    alert("❌ Music blocked by browser or invalid file");
+    alert("❌ Music blocked or invalid file");
   }
 };
 
@@ -168,7 +176,7 @@ async function startCamera(){
 }
 
 /* =========================
-   🎥 RECORD
+   🎥 RECORD VIDEO
 ========================= */
 recordBtn.onclick = () => {
   if(!stream) return alert("Start camera first");
@@ -205,7 +213,6 @@ stopBtn.onclick = () => {
 async function previewImageVideo(){
 
   const files = document.getElementById("imageInput").files;
-
   if(!files.length) return alert("Select images");
 
   const canvas = document.createElement("canvas");
@@ -281,7 +288,6 @@ async function uploadReel(){
   if(!token) return alert("Login first");
 
   let file = recordedBlob || document.getElementById("video").files[0];
-
   if(!file) return alert("No media selected");
 
   const fd = new FormData();
