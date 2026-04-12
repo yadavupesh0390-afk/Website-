@@ -62,7 +62,7 @@ video{
 <p id="status">📍 Detecting location...</p>
 
 <button onclick="uploadReel()">🚀 Upload</button>
-
+<button onclick="generateAIReel()">🤖 Auto AI Reel</button>
 <script>
 const API = "https://business-reels-backend.onrender.com";
 
@@ -163,7 +163,31 @@ stopBtn.onclick=()=>{
   recordBtn.disabled=false;
   stopBtn.disabled=true;
 };
+async function generateAIReel(){
 
+  const file = document.getElementById("imageInput").files[0];
+  if(!file) return alert("Select image first");
+
+  const fd = new FormData();
+  fd.append("image", file);
+  fd.append("businessName", FIXED_BUSINESS);
+
+  statusText.innerText="🤖 AI is generating reel...";
+
+  const res = await fetch(API + "/generate-reel",{
+    method:"POST",
+    body:fd
+  });
+
+  const data = await res.json();
+
+  if(!res.ok) return alert("❌ AI failed");
+
+  preview.src = data.videoUrl;
+  preview.controls = true;
+
+  statusText.innerText="🔥 AI Reel Ready";
+                                  }
 /* MULTI IMAGE SLIDESHOW (IMPROVED) */
 async function imageToVideo(files){
 
