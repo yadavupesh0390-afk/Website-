@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reel Upload</title>
+<title>Reel Creator</title>
 
 <style>
 body{
@@ -51,6 +51,8 @@ video{
   <option value="">-- No Music (Voice Only) --</option>
 </select>
 
+<button id="previewMusicBtn">▶️ Preview Music</button>
+
 <hr>
 
 <input type="file" id="video">
@@ -85,8 +87,13 @@ let chunks=[];
 let recordedBlob=null;
 let musicAudio = new Audio();
 
+let audioContext, destination, micSource, musicSource;
+
 const musicSelect = document.getElementById("musicSelect");
 const statusText = document.getElementById("status");
+const previewBtn = document.getElementById("previewMusicBtn");
+
+let isPlaying = false;
 
 /* ================= MUSIC LOAD ================= */
 MUSIC_LIST.forEach((m)=>{
@@ -106,13 +113,30 @@ musicSelect.onchange = ()=>{
   }
 };
 
+/* ================= MUSIC PREVIEW ================= */
+previewBtn.onclick = ()=>{
+  if(!musicAudio.src){
+    alert("❌ Select music first");
+    return;
+  }
+
+  if(!isPlaying){
+    musicAudio.currentTime = 0;
+    musicAudio.play();
+    previewBtn.innerText = "⏸ Stop Preview";
+    isPlaying = true;
+  }else{
+    musicAudio.pause();
+    previewBtn.innerText = "▶️ Preview Music";
+    isPlaying = false;
+  }
+};
+
 /* ================= LOCATION ================= */
 navigator.geolocation.getCurrentPosition(pos=>{
   lat = pos.coords.latitude;
   lng = pos.coords.longitude;
   statusText.innerText = "📍 Location detected";
-},()=>{
-  statusText.innerText = "⚠️ Location denied";
 });
 
 /* ================= CAMERA ================= */
@@ -125,29 +149,22 @@ async function startCamera(){
 
     preview.srcObject = stream;
 
-    let finalStream;
+    audioContext = new AudioContext();
+    destination = audioContext.createMediaStreamDestination();
+
+    micSource = audioContext.createMediaStreamSource(stream);
+    micSource.connect(destination);
 
     if(musicAudio.src){
-      // 🔥 WITH MUSIC
-      const ctx = new AudioContext();
-      const dest = ctx.createMediaStreamDestination();
-
-      const mic = ctx.createMediaStreamSource(stream);
-      mic.connect(dest);
-
-      const musicSource = ctx.createMediaElementSource(musicAudio);
-      musicSource.connect(dest);
-      musicSource.connect(ctx.destination);
-
-      finalStream = new MediaStream([
-        ...stream.getVideoTracks(),
-        ...dest.stream.getAudioTracks()
-      ]);
-
-    }else{
-      // 🔥 VOICE ONLY
-      finalStream = stream;
+      musicSource = audioContext.createMediaElementSource(musicAudio);
+      musicSource.connect(destination);
+      musicSource.connect(audioContext.destination);
     }
+
+    const finalStream = new MediaStream([
+      ...stream.getVideoTracks(),
+      ...destination.stream.getAudioTracks()
+    ]);
 
     mediaRecorder = new MediaRecorder(finalStream);
 
@@ -170,13 +187,23 @@ async function startCamera(){
 }
 
 /* ================= RECORD ================= */
-recordBtn.onclick = ()=>{
+recordBtn.onclick = async ()=>{
   if(!mediaRecorder){
     alert("Start camera first ❌");
     return;
   }
 
+  // 🔥 STOP PREVIEW
+  musicAudio.pause();
+  previewBtn.innerText = "▶️ Preview Music";
+  isPlaying = false;
+
   chunks=[];
+
+  if(audioContext.state === "suspended"){
+    await audioContext.resume();
+  }
+
   mediaRecorder.start();
 
   if(musicAudio.src){
