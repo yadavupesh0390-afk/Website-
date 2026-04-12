@@ -86,11 +86,11 @@ let stream;
 let mediaRecorder;
 let chunks = [];
 let recordedBlob = null;
-let musicAudio = new Audio();
+let musicAudio = null;
 let isPlaying = false;
 
 /* =========================
-   🎵 LOAD MUSIC FROM BACKEND
+   🎵 LOAD MUSIC
 ========================= */
 async function loadMusic(){
   try{
@@ -114,22 +114,35 @@ async function loadMusic(){
 loadMusic();
 
 /* =========================
-   🎵 MUSIC PREVIEW FIX
+   🎵 FIXED MUSIC PLAYER
 ========================= */
 previewBtn.onclick = async () => {
   if(!musicSelect.value) return alert("Select music first");
 
-  musicAudio.src = musicSelect.value;
-  musicAudio.loop = true;
-
-  if(!isPlaying){
-    await musicAudio.play();
-    previewBtn.innerText = "⏸ Stop";
-    isPlaying = true;
-  }else{
+  // stop previous
+  if(musicAudio){
     musicAudio.pause();
-    previewBtn.innerText = "▶️ Preview Music";
-    isPlaying = false;
+    musicAudio.currentTime = 0;
+  }
+
+  // NEW audio instance every time (IMPORTANT FIX)
+  musicAudio = new Audio(musicSelect.value);
+  musicAudio.loop = true;
+  musicAudio.volume = 1;
+
+  try{
+    if(!isPlaying){
+      await musicAudio.play();
+      previewBtn.innerText = "⏸ Stop Music";
+      isPlaying = true;
+    }else{
+      musicAudio.pause();
+      previewBtn.innerText = "▶️ Preview Music";
+      isPlaying = false;
+    }
+  }catch(err){
+    console.log(err);
+    alert("❌ Music blocked by browser or invalid file");
   }
 };
 
@@ -155,7 +168,7 @@ async function startCamera(){
 }
 
 /* =========================
-   🎥 RECORD VIDEO
+   🎥 RECORD
 ========================= */
 recordBtn.onclick = () => {
   if(!stream) return alert("Start camera first");
@@ -187,7 +200,7 @@ stopBtn.onclick = () => {
 };
 
 /* =========================
-   🖼 SLIDESHOW (FIXED)
+   🖼 SLIDESHOW
 ========================= */
 async function previewImageVideo(){
 
@@ -233,6 +246,7 @@ async function previewImageVideo(){
     let x = (canvas.width - w)/2;
     let y = (canvas.height - h)/2;
 
+    ctx.clearRect(0,0,canvas.width,canvas.height);
     ctx.drawImage(img,x,y,w,h);
 
     setTimeout(()=>{
@@ -275,7 +289,6 @@ async function uploadReel(){
   fd.append("video", file);
   fd.append("lat", lat);
   fd.append("lng", lng);
-
   fd.append("musicUrl", musicSelect.value || "");
 
   fd.append("businessName", "Webnestic Tech Up");
