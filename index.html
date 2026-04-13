@@ -26,29 +26,29 @@ button{
   background:#ff004f;
   color:white;
   font-size:16px;
+  cursor:pointer;
+}
+
+button:hover{
+  opacity:0.9;
 }
 
 /* 🔥 Loader */
 #loader{
   width:100%;
-  height:6px;
+  height:8px;
   background:#333;
   border-radius:10px;
   overflow:hidden;
   display:none;
+  margin-top:10px;
 }
 
 #progress{
   height:100%;
   width:0%;
-  background:#00ff88;
-  animation: loading 1s linear infinite;
-}
-
-@keyframes loading{
-  0%{width:0%;}
-  50%{width:80%;}
-  100%{width:100%;}
+  background:linear-gradient(90deg,#00ff88,#00c853);
+  transition: width 0.3s ease;
 }
 
 #status{
@@ -76,59 +76,70 @@ button{
 
 const API = "https://business-reels-backend.onrender.com";
 
-// 🔥 FIXED DATA (AUTO SEND)
+// 🔥 FIXED DATA
 const BUSINESS_NAME = "Webnestic Tech Up";
 const WEBSITE = "https://webnestic-tech-up.vercel.app/";
 const WHATSAPP = "919473549700";
 
-async function uploadVideo(){
+function uploadVideo(){
 
   const file = document.getElementById("videoFile").files[0];
   const status = document.getElementById("status");
   const loader = document.getElementById("loader");
+  const progress = document.getElementById("progress");
 
   if(!file){
     alert("Please select video");
     return;
   }
 
-  status.innerText = "Uploading...";
   loader.style.display = "block";
+  progress.style.width = "0%";
+  status.innerText = "Uploading...";
 
   const fd = new FormData();
   fd.append("video", file);
 
-  // 🔥 AUTO DATA ADD
+  // 🔥 AUTO DATA
   fd.append("businessName", BUSINESS_NAME);
   fd.append("website", WEBSITE);
   fd.append("whatsapp", WHATSAPP);
 
-  try{
+  const xhr = new XMLHttpRequest();
 
-    const token = localStorage.getItem("token"); // optional
+  xhr.open("POST", API + "/reels/upload", true);
 
-    const res = await fetch(API + "/reels/upload", {
-      method:"POST",
-      headers:{
-        Authorization: token ? "Bearer " + token : ""
-      },
-      body: fd
-    });
+  const token = localStorage.getItem("token");
+  if(token){
+    xhr.setRequestHeader("Authorization", "Bearer " + token);
+  }
 
-    const data = await res.json();
+  // 🔥 REAL PROGRESS TRACK
+  xhr.upload.onprogress = function(e){
+    if(e.lengthComputable){
+      const percent = (e.loaded / e.total) * 100;
+      progress.style.width = percent + "%";
+      status.innerText = "Uploading " + Math.floor(percent) + "%";
+    }
+  };
 
+  xhr.onload = function(){
     loader.style.display = "none";
 
-    if(res.ok){
+    if(xhr.status === 200){
+      progress.style.width = "100%";
       status.innerText = "✅ Upload Complete 🚀";
     }else{
-      status.innerText = "❌ " + data.error;
+      status.innerText = "❌ Upload Failed";
     }
+  };
 
-  }catch(err){
+  xhr.onerror = function(){
     loader.style.display = "none";
     status.innerText = "❌ Upload Error";
-  }
+  };
+
+  xhr.send(fd);
 }
 
 </script>
