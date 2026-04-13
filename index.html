@@ -12,7 +12,6 @@ body{
   font-family:Arial;
   padding:20px;
 }
-
 button,input,select{
   width:100%;
   padding:12px;
@@ -20,15 +19,12 @@ button,input,select{
   border-radius:10px;
   border:none;
 }
-
 button{background:#ff004f;color:white;}
-
 video{
   width:100%;
   border-radius:10px;
   margin-top:10px;
 }
-
 #recordBtn{background:#00c853;}
 #stopBtn{background:#d50000;}
 </style>
@@ -38,7 +34,8 @@ video{
 
 <h2>🎬 Reel Creator PRO</h2>
 
-<video id="preview" autoplay playsinline></video>
+<!-- 🔥 IMPORTANT: muted removed -->
+<video id="preview" autoplay playsinline controls></video>
 
 <button onclick="startCamera()">📷 Start Camera</button>
 
@@ -64,7 +61,7 @@ video{
 
 <input type="file" id="video">
 
-<p id="status">📍 Detecting location...</p>
+<p id="status">📍 Ready</p>
 
 <button onclick="uploadReel()">🚀 Upload Reel</button>
 
@@ -77,20 +74,18 @@ const preview = document.getElementById("preview");
 const statusText = document.getElementById("status");
 const musicSelect = document.getElementById("musicSelect");
 const previewBtn = document.getElementById("previewMusicBtn");
-const recordBtn = document.getElementById("recordBtn");
-const stopBtn = document.getElementById("stopBtn");
 
 /* GLOBALS */
-let lat = "", lng = "";
-let stream;
 let mediaRecorder;
 let chunks = [];
 let recordedBlob = null;
 let musicAudio = null;
-let audioCtx, audioSource, audioDest;
+let audioCtx = null;
+let audioSource = null;
+let audioDest = null;
 
 /* =========================
-   🎵 LOAD MUSIC
+   LOAD MUSIC
 ========================= */
 async function loadMusic(){
   const res = await fetch(API + "/music-list");
@@ -108,40 +103,43 @@ async function loadMusic(){
 loadMusic();
 
 /* =========================
-   🎵 MUSIC FIX (STABLE VERSION)
+   MUSIC PLAYER (FINAL FIX)
 ========================= */
 previewBtn.onclick = async () => {
 
-  if (!musicSelect.value) {
-    alert("Select music first");
-    return;
-  }
+  if (!musicSelect.value) return alert("Select music first");
 
   try {
-
-    // STOP
-    if (musicAudio && !musicAudio.paused) {
-      musicAudio.pause();
-      musicAudio.currentTime = 0;
-      musicAudio = null;
-
-      previewBtn.innerText = "▶️ Preview Music";
-      return;
-    }
 
     let url = musicSelect.value.startsWith("http")
       ? musicSelect.value
       : API + musicSelect.value;
 
-    // clean old
-    if (musicAudio) {
+    // STOP
+    if (musicAudio && !musicAudio.paused) {
       musicAudio.pause();
-      musicAudio = null;
+      musicAudio.currentTime = 0;
+      previewBtn.innerText = "▶️ Preview Music";
+      return;
     }
 
+    // INIT AUDIO CONTEXT
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    await audioCtx.resume();
+
     musicAudio = new Audio(url);
+    musicAudio.crossOrigin = "anonymous";
     musicAudio.loop = true;
     musicAudio.volume = 1;
+
+    audioSource = audioCtx.createMediaElementSource(musicAudio);
+    audioDest = audioCtx.createMediaStreamDestination();
+
+    audioSource.connect(audioDest);
+    audioSource.connect(audioCtx.destination);
 
     await musicAudio.play();
 
@@ -149,55 +147,12 @@ previewBtn.onclick = async () => {
 
   } catch (err) {
     console.log(err);
-    alert("❌ Music blocked by browser");
+    alert("❌ Music play failed");
   }
 };
-/* =========================
-   📷 CAMERA
-========================= */
-async function startCamera(){
-  stream = await navigator.mediaDevices.getUserMedia({
-    video:true,
-    audio:true
-  });
-
-  preview.srcObject = stream;
-}
 
 /* =========================
-   🎥 RECORD
-========================= */
-recordBtn.onclick = () => {
-  if(!stream) return alert("Start camera first");
-
-  chunks = [];
-  mediaRecorder = new MediaRecorder(stream);
-
-  mediaRecorder.ondataavailable = e => {
-    if(e.data.size > 0) chunks.push(e.data);
-  };
-
-  mediaRecorder.onstop = () => {
-    recordedBlob = new Blob(chunks, {type:"video/webm"});
-    preview.srcObject = null;
-    preview.src = URL.createObjectURL(recordedBlob);
-    preview.controls = true;
-  };
-
-  mediaRecorder.start();
-
-  recordBtn.disabled = true;
-  stopBtn.disabled = false;
-};
-
-stopBtn.onclick = () => {
-  mediaRecorder.stop();
-  recordBtn.disabled = false;
-  stopBtn.disabled = true;
-};
-
-/* =========================
-   🖼 SLIDESHOW (FINAL HD FIX)
+   SLIDESHOW (HD + AUDIO FINAL)
 ========================= */
 async function previewImageVideo(){
 
@@ -223,20 +178,24 @@ async function previewImageVideo(){
   }
 
   const canvasStream = canvas.captureStream(30);
-  const audioStream = audioDest ? audioDest.stream : null;
 
   let finalStream;
 
-  if(audioStream){
+  if (audioDest && musicAudio) {
+    musicAudio.currentTime = 0;
+
     finalStream = new MediaStream([
       ...canvasStream.getVideoTracks(),
-      ...audioStream.getAudioTracks()
+      ...audioDest.stream.getAudioTracks()
     ]);
   } else {
     finalStream = canvasStream;
   }
 
-  const recorder = new MediaRecorder(finalStream);
+  const recorder = new MediaRecorder(finalStream, {
+    mimeType: "video/webm;codecs=vp9,opus"
+  });
+
   let data = [];
 
   recorder.ondataavailable = e => {
@@ -251,7 +210,7 @@ async function previewImageVideo(){
 
     let img = images[i];
 
-    let ratio = Math.min(canvas.width/img.width, canvas.height/img.height);
+    let ratio = Math.max(canvas.width/img.width, canvas.height/img.height);
 
     let w = img.width * ratio;
     let h = img.height * ratio;
@@ -275,15 +234,23 @@ async function previewImageVideo(){
   draw();
 
   recorder.onstop = () => {
+
     recordedBlob = new Blob(data, {type:"video/webm"});
+
+    preview.srcObject = null;
     preview.src = URL.createObjectURL(recordedBlob);
-    preview.controls = true;
-    statusText.innerText = "✅ HD Reel Ready (Fixed)";
+
+    preview.muted = false;
+    preview.volume = 1;
+
+    preview.play();
+
+    statusText.innerText = "✅ Reel Ready (HD + Sound)";
   };
 }
 
 /* =========================
-   🚀 UPLOAD
+   UPLOAD
 ========================= */
 async function uploadReel(){
 
@@ -296,13 +263,7 @@ async function uploadReel(){
   const fd = new FormData();
 
   fd.append("video", file);
-  fd.append("lat", lat);
-  fd.append("lng", lng);
   fd.append("musicUrl", musicSelect.value || "");
-
-  fd.append("businessName", "Webnestic Tech Up");
-  fd.append("website", "https://webnestic-tech-up.vercel.app/");
-  fd.append("whatsapp", "919473549700");
 
   const res = await fetch(API + "/reels/upload", {
     method:"POST",
