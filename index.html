@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reel Creator PRO</title>
+<title>Simple Reel Upload</title>
 
 <style>
 body{
@@ -11,262 +11,112 @@ body{
   color:#fff;
   font-family:Arial;
   padding:20px;
+  text-align:center;
 }
-button,input,select{
+
+input,button{
   width:100%;
-  padding:12px;
-  margin:8px 0;
+  padding:14px;
+  margin:10px 0;
   border-radius:10px;
   border:none;
 }
-button{background:#ff004f;color:white;}
-video{
-  width:100%;
-  border-radius:10px;
-  margin-top:10px;
+
+button{
+  background:#ff004f;
+  color:white;
+  font-size:16px;
 }
-#recordBtn{background:#00c853;}
-#stopBtn{background:#d50000;}
+
+/* 🔥 Loader Line */
+#loader{
+  width:100%;
+  height:6px;
+  background:#333;
+  border-radius:10px;
+  overflow:hidden;
+  display:none;
+}
+
+#progress{
+  height:100%;
+  width:0%;
+  background:#00ff88;
+  animation: loading 1s linear infinite;
+}
+
+@keyframes loading{
+  0%{width:0%;}
+  50%{width:80%;}
+  100%{width:100%;}
+}
+
+#status{
+  margin-top:10px;
+  font-size:16px;
+}
 </style>
 </head>
 
 <body>
 
-<h2>🎬 Reel Creator PRO</h2>
+<h2>🎬 Upload Reel</h2>
 
-<video id="preview" autoplay playsinline controls></video>
+<input type="file" id="videoFile" accept="video/*">
 
-<button onclick="startCamera()">📷 Start Camera</button>
+<button onclick="uploadVideo()">🚀 Upload</button>
 
-<button id="recordBtn">🎥 Start Recording</button>
-<button id="stopBtn" disabled>⏹ Stop</button>
+<div id="loader">
+  <div id="progress"></div>
+</div>
 
-<hr>
-
-<h3>🎵 Select Music</h3>
-<select id="musicSelect">
-  <option value="">-- Voice Only --</option>
-</select>
-
-<button id="previewMusicBtn">▶️ Preview Music</button>
-
-<hr>
-
-<h3>🖼 Slideshow</h3>
-<input type="file" id="imageInput" multiple accept="image/*">
-<button onclick="previewImageVideo()">Create Slideshow</button>
-
-<hr>
-
-<input type="file" id="video">
-
-<p id="status">Ready</p>
-
-<button onclick="uploadReel()">🚀 Upload Reel</button>
+<p id="status"></p>
 
 <script>
 
 const API = "https://business-reels-backend.onrender.com";
 
-const preview = document.getElementById("preview");
-const musicSelect = document.getElementById("musicSelect");
-const previewBtn = document.getElementById("previewMusicBtn");
+async function uploadVideo(){
 
-let stream, mediaRecorder, chunks = [];
-let recordedBlob = null;
+  const file = document.getElementById("videoFile").files[0];
+  const status = document.getElementById("status");
+  const loader = document.getElementById("loader");
 
-// 🔥 AUDIO ENGINE
-let audioCtx;
-let musicAudio;
-let audioSource;
-let audioDest;
-
-/* ================= MUSIC LOAD ================= */
-async function loadMusic(){
-  const res = await fetch(API + "/music-list");
-  const data = await res.json();
-
-  musicSelect.innerHTML = `<option value="">-- Voice Only --</option>`;
-
-  data.forEach(m=>{
-    let opt = document.createElement("option");
-    opt.value = m.url;
-    opt.innerText = m.name;
-    musicSelect.appendChild(opt);
-  });
-}
-loadMusic();
-
-/* ================= MUSIC PLAY ================= */
-previewBtn.onclick = async () => {
-
-  if(!musicSelect.value) return alert("Select music");
-
-  try{
-
-    if(!audioCtx){
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
-    await audioCtx.resume();
-
-    // STOP
-    if(musicAudio && !musicAudio.paused){
-      musicAudio.pause();
-      musicAudio.currentTime = 0;
-      previewBtn.innerText = "▶️ Preview Music";
-      return;
-    }
-
-    let url = musicSelect.value.startsWith("http")
-      ? musicSelect.value
-      : API + musicSelect.value;
-
-    musicAudio = new Audio(url);
-    musicAudio.loop = true;
-    musicAudio.crossOrigin = "anonymous";
-
-    audioSource = audioCtx.createMediaElementSource(musicAudio);
-    audioDest = audioCtx.createMediaStreamDestination();
-
-    audioSource.connect(audioDest);
-    audioSource.connect(audioCtx.destination);
-
-    await musicAudio.play();
-
-    previewBtn.innerText = "⏸ Stop Music";
-
-  }catch(err){
-    console.log(err);
-    alert("Audio error ❌");
-  }
-};
-
-/* ================= CAMERA ================= */
-async function startCamera(){
-  stream = await navigator.mediaDevices.getUserMedia({
-    video:true,
-    audio:true
-  });
-  preview.srcObject = stream;
-}
-
-/* ================= RECORD ================= */
-recordBtn.onclick = ()=>{
-  if(!stream) return alert("Start camera");
-
-  chunks = [];
-
-  const mixedStream = new MediaStream([
-    ...stream.getVideoTracks(),
-    ...(audioDest ? audioDest.stream.getAudioTracks() : stream.getAudioTracks())
-  ]);
-
-  mediaRecorder = new MediaRecorder(mixedStream);
-
-  mediaRecorder.ondataavailable = e=>{
-    if(e.data.size>0) chunks.push(e.data);
-  };
-
-  mediaRecorder.onstop = ()=>{
-    recordedBlob = new Blob(chunks,{type:"video/webm"});
-    preview.srcObject = null;
-    preview.src = URL.createObjectURL(recordedBlob);
-  };
-
-  mediaRecorder.start();
-};
-
-stopBtn.onclick = ()=>{
-  mediaRecorder.stop();
-};
-
-/* ================= SLIDESHOW ================= */
-async function previewImageVideo(){
-
-  const files = document.getElementById("imageInput").files;
-  if(!files.length) return alert("Select images");
-
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-
-  canvas.width = 1080;
-  canvas.height = 1920;
-
-  let images = [];
-
-  for(let file of files){
-    let img = new Image();
-    img.src = URL.createObjectURL(file);
-    await new Promise(r=>img.onload=r);
-    images.push(img);
+  if(!file){
+    alert("Please select video");
+    return;
   }
 
-  const canvasStream = canvas.captureStream(30);
-
-  const finalStream = new MediaStream([
-    ...canvasStream.getVideoTracks(),
-    ...(audioDest ? audioDest.stream.getAudioTracks() : [])
-  ]);
-
-  const recorder = new MediaRecorder(finalStream);
-  let data=[];
-
-  recorder.ondataavailable = e=>{
-    if(e.data.size>0) data.push(e.data);
-  };
-
-  recorder.start();
-
-  let i=0;
-
-  function draw(){
-
-    let img = images[i];
-
-    let ratio = Math.min(canvas.width/img.width, canvas.height/img.height);
-
-    let w = img.width * ratio;
-    let h = img.height * ratio;
-
-    let x = (canvas.width - w)/2;
-    let y = (canvas.height - h)/2;
-
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    ctx.drawImage(img,x,y,w,h);
-
-    setTimeout(()=>{
-      i++;
-      if(i<images.length) draw();
-      else recorder.stop();
-    },2000);
-  }
-
-  draw();
-
-  recorder.onstop = ()=>{
-    recordedBlob = new Blob(data,{type:"video/webm"});
-    preview.src = URL.createObjectURL(recordedBlob);
-  };
-}
-
-/* ================= UPLOAD ================= */
-async function uploadReel(){
-
-  let file = recordedBlob || document.getElementById("video").files[0];
-  if(!file) return alert("No video");
+  status.innerText = "Uploading...";
+  loader.style.display = "block";
 
   const fd = new FormData();
   fd.append("video", file);
 
-  const res = await fetch(API + "/reels/upload", {
-    method:"POST",
-    body: fd
-  });
+  try{
 
-  alert("Uploaded 🚀");
+    const res = await fetch(API + "/reels/upload", {
+      method:"POST",
+      body: fd
+    });
+
+    const data = await res.json();
+
+    loader.style.display = "none";
+
+    if(res.ok){
+      status.innerText = "✅ Upload Complete";
+    }else{
+      status.innerText = "❌ Upload Failed";
+    }
+
+  }catch(err){
+    loader.style.display = "none";
+    status.innerText = "❌ Error Uploading";
+  }
 }
 
 </script>
+
 </body>
 </html>
