@@ -28,7 +28,7 @@ button{
   font-size:16px;
 }
 
-/* 🔥 Loader Line */
+/* 🔥 Loader */
 #loader{
   width:100%;
   height:6px;
@@ -76,6 +76,11 @@ button{
 
 const API = "https://business-reels-backend.onrender.com";
 
+// 🔥 FIXED DATA (AUTO SEND)
+const BUSINESS_NAME = "Webnestic Tech Up";
+const WEBSITE = "https://webnestic-tech-up.vercel.app/";
+const WHATSAPP = "919473549700";
+
 async function uploadVideo(){
 
   const file = document.getElementById("videoFile").files[0];
@@ -93,10 +98,20 @@ async function uploadVideo(){
   const fd = new FormData();
   fd.append("video", file);
 
+  // 🔥 AUTO DATA ADD
+  fd.append("businessName", BUSINESS_NAME);
+  fd.append("website", WEBSITE);
+  fd.append("whatsapp", WHATSAPP);
+
   try{
+
+    const token = localStorage.getItem("token"); // optional
 
     const res = await fetch(API + "/reels/upload", {
       method:"POST",
+      headers:{
+        Authorization: token ? "Bearer " + token : ""
+      },
       body: fd
     });
 
@@ -105,14 +120,14 @@ async function uploadVideo(){
     loader.style.display = "none";
 
     if(res.ok){
-      status.innerText = "✅ Upload Complete";
+      status.innerText = "✅ Upload Complete 🚀";
     }else{
-      status.innerText = "❌ Upload Failed";
+      status.innerText = "❌ " + data.error;
     }
 
   }catch(err){
     loader.style.display = "none";
-    status.innerText = "❌ Error Uploading";
+    status.innerText = "❌ Upload Error";
   }
 }
 
