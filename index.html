@@ -34,7 +34,6 @@ video{
 
 <h2>🎬 Reel Creator PRO</h2>
 
-<!-- 🔥 IMPORTANT: muted removed -->
 <video id="preview" autoplay playsinline controls></video>
 
 <button onclick="startCamera()">📷 Start Camera</button>
@@ -61,7 +60,7 @@ video{
 
 <input type="file" id="video">
 
-<p id="status">📍 Ready</p>
+<p id="status">Ready</p>
 
 <button onclick="uploadReel()">🚀 Upload Reel</button>
 
@@ -69,31 +68,27 @@ video{
 
 const API = "https://business-reels-backend.onrender.com";
 
-/* ELEMENTS */
 const preview = document.getElementById("preview");
-const statusText = document.getElementById("status");
 const musicSelect = document.getElementById("musicSelect");
 const previewBtn = document.getElementById("previewMusicBtn");
 
-/* GLOBALS */
-let mediaRecorder;
-let chunks = [];
+let stream, mediaRecorder, chunks = [];
 let recordedBlob = null;
-let musicAudio = null;
-let audioCtx = null;
-let audioSource = null;
-let audioDest = null;
 
-/* =========================
-   LOAD MUSIC
-========================= */
+// 🔥 AUDIO ENGINE
+let audioCtx;
+let musicAudio;
+let audioSource;
+let audioDest;
+
+/* ================= MUSIC LOAD ================= */
 async function loadMusic(){
   const res = await fetch(API + "/music-list");
   const data = await res.json();
 
   musicSelect.innerHTML = `<option value="">-- Voice Only --</option>`;
 
-  data.forEach(m => {
+  data.forEach(m=>{
     let opt = document.createElement("option");
     opt.value = m.url;
     opt.innerText = m.name;
@@ -102,38 +97,34 @@ async function loadMusic(){
 }
 loadMusic();
 
-/* =========================
-   MUSIC PLAYER (FINAL FIX)
-========================= */
+/* ================= MUSIC PLAY ================= */
 previewBtn.onclick = async () => {
 
-  if (!musicSelect.value) return alert("Select music first");
+  if(!musicSelect.value) return alert("Select music");
 
-  try {
+  try{
 
-    let url = musicSelect.value.startsWith("http")
-      ? musicSelect.value
-      : API + musicSelect.value;
+    if(!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    await audioCtx.resume();
 
     // STOP
-    if (musicAudio && !musicAudio.paused) {
+    if(musicAudio && !musicAudio.paused){
       musicAudio.pause();
       musicAudio.currentTime = 0;
       previewBtn.innerText = "▶️ Preview Music";
       return;
     }
 
-    // INIT AUDIO CONTEXT
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
-    await audioCtx.resume();
+    let url = musicSelect.value.startsWith("http")
+      ? musicSelect.value
+      : API + musicSelect.value;
 
     musicAudio = new Audio(url);
-    musicAudio.crossOrigin = "anonymous";
     musicAudio.loop = true;
-    musicAudio.volume = 1;
+    musicAudio.crossOrigin = "anonymous";
 
     audioSource = audioCtx.createMediaElementSource(musicAudio);
     audioDest = audioCtx.createMediaStreamDestination();
@@ -145,15 +136,52 @@ previewBtn.onclick = async () => {
 
     previewBtn.innerText = "⏸ Stop Music";
 
-  } catch (err) {
+  }catch(err){
     console.log(err);
-    alert("❌ Music play failed");
+    alert("Audio error ❌");
   }
 };
 
-/* =========================
-   SLIDESHOW (HD + AUDIO FINAL)
-========================= */
+/* ================= CAMERA ================= */
+async function startCamera(){
+  stream = await navigator.mediaDevices.getUserMedia({
+    video:true,
+    audio:true
+  });
+  preview.srcObject = stream;
+}
+
+/* ================= RECORD ================= */
+recordBtn.onclick = ()=>{
+  if(!stream) return alert("Start camera");
+
+  chunks = [];
+
+  const mixedStream = new MediaStream([
+    ...stream.getVideoTracks(),
+    ...(audioDest ? audioDest.stream.getAudioTracks() : stream.getAudioTracks())
+  ]);
+
+  mediaRecorder = new MediaRecorder(mixedStream);
+
+  mediaRecorder.ondataavailable = e=>{
+    if(e.data.size>0) chunks.push(e.data);
+  };
+
+  mediaRecorder.onstop = ()=>{
+    recordedBlob = new Blob(chunks,{type:"video/webm"});
+    preview.srcObject = null;
+    preview.src = URL.createObjectURL(recordedBlob);
+  };
+
+  mediaRecorder.start();
+};
+
+stopBtn.onclick = ()=>{
+  mediaRecorder.stop();
+};
+
+/* ================= SLIDESHOW ================= */
 async function previewImageVideo(){
 
   const files = document.getElementById("imageInput").files;
@@ -165,52 +193,38 @@ async function previewImageVideo(){
   canvas.width = 1080;
   canvas.height = 1920;
 
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
-
   let images = [];
 
   for(let file of files){
     let img = new Image();
     img.src = URL.createObjectURL(file);
-    await new Promise(r => img.onload = r);
+    await new Promise(r=>img.onload=r);
     images.push(img);
   }
 
   const canvasStream = canvas.captureStream(30);
 
-  let finalStream;
+  const finalStream = new MediaStream([
+    ...canvasStream.getVideoTracks(),
+    ...(audioDest ? audioDest.stream.getAudioTracks() : [])
+  ]);
 
-  if (audioDest && musicAudio) {
-    musicAudio.currentTime = 0;
+  const recorder = new MediaRecorder(finalStream);
+  let data=[];
 
-    finalStream = new MediaStream([
-      ...canvasStream.getVideoTracks(),
-      ...audioDest.stream.getAudioTracks()
-    ]);
-  } else {
-    finalStream = canvasStream;
-  }
-
-  const recorder = new MediaRecorder(finalStream, {
-    mimeType: "video/webm;codecs=vp9,opus"
-  });
-
-  let data = [];
-
-  recorder.ondataavailable = e => {
-    if(e.data.size > 0) data.push(e.data);
+  recorder.ondataavailable = e=>{
+    if(e.data.size>0) data.push(e.data);
   };
 
   recorder.start();
 
-  let i = 0;
+  let i=0;
 
   function draw(){
 
     let img = images[i];
 
-    let ratio = Math.max(canvas.width/img.width, canvas.height/img.height);
+    let ratio = Math.min(canvas.width/img.width, canvas.height/img.height);
 
     let w = img.width * ratio;
     let h = img.height * ratio;
@@ -223,64 +237,36 @@ async function previewImageVideo(){
 
     setTimeout(()=>{
       i++;
-      if(i < images.length){
-        draw();
-      } else {
-        recorder.stop();
-      }
+      if(i<images.length) draw();
+      else recorder.stop();
     },2000);
   }
 
   draw();
 
-  recorder.onstop = () => {
-
-    recordedBlob = new Blob(data, {type:"video/webm"});
-
-    preview.srcObject = null;
+  recorder.onstop = ()=>{
+    recordedBlob = new Blob(data,{type:"video/webm"});
     preview.src = URL.createObjectURL(recordedBlob);
-
-    preview.muted = false;
-    preview.volume = 1;
-
-    preview.play();
-
-    statusText.innerText = "✅ Reel Ready (HD + Sound)";
   };
 }
 
-/* =========================
-   UPLOAD
-========================= */
+/* ================= UPLOAD ================= */
 async function uploadReel(){
 
-  const token = localStorage.getItem("token");
-  if(!token) return alert("Login first");
-
   let file = recordedBlob || document.getElementById("video").files[0];
-  if(!file) return alert("No media selected");
+  if(!file) return alert("No video");
 
   const fd = new FormData();
-
   fd.append("video", file);
-  fd.append("musicUrl", musicSelect.value || "");
 
   const res = await fetch(API + "/reels/upload", {
     method:"POST",
-    headers:{
-      Authorization:"Bearer " + token
-    },
     body: fd
   });
 
-  const data = await res.json();
-
-  if(!res.ok) return alert("❌ " + data.error);
-
-  alert("✅ Upload Success 🚀");
+  alert("Uploaded 🚀");
 }
 
 </script>
-
 </body>
 </html>
